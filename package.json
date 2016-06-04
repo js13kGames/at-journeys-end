@@ -1,0 +1,22 @@
+{
+    "name": "mvtswp",
+    "version": "1.0.0",
+    "description": "Minimum Viable TypeScript Webpack",
+    "repository": "https://github.com/kwbeam/mvtswp",
+    "main": "index.js",
+    "scripts": {
+        "build": "webpack",
+        "dev": "webpack --watch",
+        "start": "webpack-dev-server"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "GPL-3.0",
+    "devDependencies": {
+        "source-map-loader": "^0.1.5",
+        "ts-loader": "^0.8.2",
+        "typescript": "^1.8.10",
+        "webpack": "^1.13.1",
+        "webpack-dev-server": "^1.14.1"
+    }
+}
