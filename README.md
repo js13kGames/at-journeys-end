@@ -19,7 +19,7 @@ With npm:
 
         $ npm install
 
-If you have yard:
+If you have yarn:
 
         $ yarn
 
