@@ -1,23 +1,23 @@
 {
-    "name": "mvtswp",
-    "version": "1.0.0",
-    "description": "Minimum Viable TypeScript Webpack",
-    "repository": "https://gitlab.com/kwbeam/mvtswp",
-    "main": "index.js",
-    "scripts": {
-        "clean": "rm -rf dist",
-        "build": "webpack",
-        "dev": "webpack --watch",
-        "start": "webpack-dev-server"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "GPL-3.0",
-    "devDependencies": {
-        "source-map-loader": "0.1.6",
-        "ts-loader": "2.0.0",
-        "typescript": "2.1.6",
-        "webpack": "2.2.1",
-        "webpack-dev-server": "2.4.0"
-    }
+  "name": "mvtswp",
+  "version": "1.1.0",
+  "description": "Minimum Viable TypeScript Webpack",
+  "repository": "https://gitlab.com/kwbeam/mvtswp",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "webpack",
+    "dev": "webpack --watch",
+    "start": "webpack-dev-server"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "source-map-loader": "0.1.6",
+    "ts-loader": "2.0.0",
+    "typescript": "2.1.6",
+    "webpack": "2.2.1",
+    "webpack-dev-server": "2.4.0"
+  }
 }
