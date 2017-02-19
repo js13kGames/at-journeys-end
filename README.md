@@ -8,9 +8,20 @@ Requirements
 
 NodeJS (and npm!)
 
+Optionals
+---
+
+[Yarn package manager](https://yarnpkg.com/en/)
+
 Install dependencies:
 ---
+With npm:
+
         $ npm install
+
+If you have yard:
+
+        $ yarn
 
 Build, view, build, view, ...
 ---
