@@ -6,10 +6,11 @@ Welcome to the Minimum Viable TypeScript Webpack app!
 Requirements
 ---
 
+NodeJS (and npm!)
+
 Install dependencies:
 ---
         $ npm install
-
 
 Build, view, build, view, ...
 ---
