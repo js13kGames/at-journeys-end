@@ -1,22 +1,19 @@
 module.exports = {
-  entry: "./src/index.ts",
-  output: {
-    filename: "./dist/bundle.js"
-  },
+    entry: "./src/index.ts",
+    output: {
+        filename: "./dist/bundle.js"
+    },
 
-  devtool: "source-map",
+    devtool: "source-map",
 
-  resolve: {
-    extensions: ["", ".webpack.js", ".web.js", ".ts", ".js"]
-  },
+    resolve: {
+        extensions: [".webpack.js", ".web.js", ".ts", ".js"]
+    },
 
-  module: {
-    loaders: [
-      { test: /\.ts$/, loader: "ts-loader" }
-    ],
-
-    preLoaders: [
-      { test: /\.js$/, loader: "source-map-loader" }
-    ]
-  }
+    module: {
+        rules: [
+            { test: /\.ts$/, loader: "ts-loader" },
+            { test: /\.js$/, enforce: "pre", loader: "source-map-loader" }
+        ]
+    }
 };
