@@ -1,8 +1,8 @@
 {
-  "name": "mvtswp",
+  "name": "js13k",
   "version": "1.2.0",
-  "description": "Minimum Viable TypeScript Webpack",
-  "repository": "https://gitlab.com/kwbeam/mvtswp",
+  "description": "JS13k Game",
+  "repository": "https://github.com/w0hrk/js13k",
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf dist",

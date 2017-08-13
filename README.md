@@ -1,7 +1,7 @@
-MVTSWP
-======
+JS13k
+=====
 
-Welcome to the Minimum Viable TypeScript Webpack app!
+Let's Play!
 
 Requirements
 ---
