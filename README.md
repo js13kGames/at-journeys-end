@@ -8,7 +8,7 @@ Requirements
 
 NodeJS (and npm!)
 
-Optionals
+Optional
 ---
 
 [Yarn package manager](https://yarnpkg.com/en/)
@@ -23,39 +23,28 @@ If you have yarn:
 
         $ yarn
 
-Build, view, build, view, ...
----
-1. Build the app once:
-
-        $ npm run build
-
-2. Open ./index.html
-
-3. Modify the app in src/index.ts
-
-4. Build it again:
-
-        $ npm run build
-
-5. Refresh the browser. Did you see your change? Nice!
-
-Automatigically build
+Development
 ---
 
-1. Run webpack in dev mode so it recompiles / rebundles each time the
-   source changes:
-
-        $ npm run dev
-
-2. Now you can modify the source and refresh the browser without doing
-   a build on the commandline. Nicer!
-
-Automagically build and refresh
----
-
-1. Finally, you can run the webpack-dev-server so the app is served up
+1. Run the webpack-dev-server so the app is served up
    by a web server.
 
         $ npm start
 
-2. Now you can open the app and see live changes: http://localhost:8080/webpack-dev-server/
+2. Now you can open the app and see live changes:
+   http://localhost:8080/webpack-dev-server/
+
+Production
+---
+
+1. Run the non-webpack build:
+
+        $ npm run build
+
+<or>
+
+1. Run the webpack build:
+
+        $ npm run build:webpack
+
+2. Profit by submitting dist/game.zip!
