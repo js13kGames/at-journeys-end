@@ -11,7 +11,7 @@ module.exports = {
             minify: {
                 collapseWhitespace: true
             },
-            filename: 'dist/index.html'
+            filename: 'index.html'
         })
     ],
     output: {
