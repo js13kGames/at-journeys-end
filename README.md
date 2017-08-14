@@ -41,7 +41,7 @@ Production
 
         $ npm run build
 
-<or>
+*or*
 
 1. Run the webpack build:
 
