@@ -5,8 +5,8 @@
     "repository": "https://github.com/w0hrk/js13k",
     "main": "index.js",
     "scripts": {
-        "clean": "rm -rf index.html dist",
-        "build": "tsc && uglifyjs -o dist/bundle.js dist/bundle.js && zip -j dist/game src/index.html dist/bundle.js && ls -al dist/game.zip",
+        "clean": "rm -rf dist",
+        "build": "tsc && uglifyjs -o dist/bundle.js dist/bundle.js && zip dist/game index.html dist/bundle.js && ls -al dist/game.zip",
         "build:webpack": "webpack -p && zip dist/game index.html dist/bundle.js && ls -al dist/game.zip",
         "start": "webpack-dev-server"
     },
