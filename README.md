@@ -32,19 +32,22 @@ Development
         $ npm start
 
 2. Now you can open the app and see live changes:
-   http://localhost:8080/webpack-dev-server/
+   http://localhost:8080/
 
 Production
 ---
 
-1. Run the non-webpack build:
+1. Build the zip file:
 
         $ npm run build
 
-*or*
+2. ...
 
-1. Run the webpack build:
+3. Profit! (submit dist/game.zip to js13k)
 
-        $ npm run build:webpack
+Clean
+---
 
-2. Profit by submitting dist/game.zip!
+To cleanup build artifacts:
+
+        $ npm run clean
