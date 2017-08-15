@@ -22,7 +22,8 @@ function main() {
 
 	const trees = generateTrees(mapSize, 150)
 
-	const canvas = <HTMLCanvasElement>document.getElementById("canvas")
+        const canvas = <HTMLCanvasElement>document.createElement("canvas");
+        document.body.appendChild(canvas);
 	const c = canvas.getContext('2d')
 
 	function resize() {
