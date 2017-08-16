@@ -1,29 +1,19 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-
 module.exports = {
-    entry: "./src/index.ts",
+    entry: "./src/main.ts",
     plugins: [
         new HtmlWebpackPlugin({
-            inject: false,
-            title: 'JS13k Game!',
-            template: require('html-webpack-template'),
-            appMountId: 'app',
+            title: 'Game',
             minify: {
                 collapseWhitespace: true
-            },
-            filename: 'index.html'
+            }
         })
     ],
-    output: {
-        filename: "./dist/bundle.js"
-    },
-
+    output: {filename: "./dist/bundle.js"},
     devtool: "source-map",
-
     resolve: {
         extensions: [".webpack.js", ".web.js", ".ts", ".js"]
     },
-
     module: {
         rules: [
             { test: /\.ts$/, loader: "ts-loader" },
