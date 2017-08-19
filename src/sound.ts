@@ -15,8 +15,8 @@ export function toggleSound(audio: AudioState) {
         audio.totalGain.gain.value = audio.totalGain.gain.value ? 0 : 1;
 }
 
-// The basic random noise generator was lifted from a web page that I
-// have since lost. :(
+// The basic random noise generator was lifted from this helpful post:
+// https://noisehack.com/generate-noise-web-audio-api/
 export function wind(audio: AudioState) {
         const bufferSize = 4096;
 
