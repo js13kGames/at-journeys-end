@@ -40,8 +40,8 @@ function wind(audio: AudioState) {
     node.connect(gain);
 }
 
-function toggleSound(gain: GainNode) {
-    gain.gain.value = gain.gain.value ? 0 : 1;
+function toggleSound(audio: AudioState) {
+    audio.totalGain.gain.value = audio.totalGain.gain.value ? 0 : 1;
 }
 
 function knock(audio: AudioState) {
@@ -81,8 +81,8 @@ function main() {
         document.body.appendChild(canvas);
         const c = canvas.getContext('2d')
 
-        let audio = initSound();
-        wind(audio);
+        let audioState = initSound();
+        wind(audioState);
 
 	function resize() {
 		setTimeout(()=>{
@@ -113,9 +113,9 @@ function main() {
 			case 74:	// J
 		                py += v; break;	// down
                         case 78:        // n
-                                knock(audio); break;
+                                knock(audioState); break;
                         case 81:        // q
-                                toggleSound(audio.totalGain); break;
+                                toggleSound(audioState); break;
 			default: console.log(key)
 		}
 		draw()
