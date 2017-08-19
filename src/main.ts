@@ -18,6 +18,8 @@ function initSound(): AudioState {
     return {context, totalGain}
 }
 
+// The basic random noise generator was lifted from a web page that I
+// have since lost. :(
 function wind(audio: AudioState) {
     const bufferSize = 4096;
 
