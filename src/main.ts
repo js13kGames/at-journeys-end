@@ -5,6 +5,61 @@ interface Tree {
 }
 const Tree = (x: number, y: number, r: number)=>({ x: x, y: y, r: r })
 
+interface AudioState {
+    context: AudioContext;
+    totalGain: GainNode;
+}
+
+function initSound(): AudioState {
+    let context = new AudioContext();
+    var totalGain = context.createGain();
+    totalGain.connect(context.destination);
+    
+    return {context, totalGain}
+}
+
+function wind(audio: AudioState) {
+    const bufferSize = 4096;
+
+    let gain = audio.context.createGain();
+    gain.connect(audio.totalGain);
+    gain.gain.setValueAtTime(0.08, audio.context.currentTime);
+
+    let lastOut = 0.0;
+    let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
+    node.onaudioprocess = function(e) {
+        let output = e.outputBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            let white = Math.random() * 2 - 1;
+            output[i] = (lastOut + (0.02 * white)) / 1.02;
+            lastOut = output[i];
+            output[i] *= 3.5; // (roughly) compensate for gain
+        }
+    }
+
+    node.connect(gain);
+}
+
+function toggleSound(gain: GainNode) {
+    gain.gain.value = gain.gain.value ? 0 : 1;
+}
+
+function knock(audio: AudioState) {
+    var gain = audio.context.createGain();
+    gain.connect(audio.totalGain);
+    let now = audio.context.currentTime
+    gain.gain.setValueAtTime(1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+    let oscillator = audio.context.createOscillator();
+    oscillator.type = "triangle";
+    oscillator.frequency.value = 80;
+    oscillator.connect(gain);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.1);
+}
+
 function main() {
 	const body = document.body.style
 	body.margin = "0px"
@@ -24,7 +79,10 @@ function main() {
 
         const canvas = <HTMLCanvasElement>document.createElement("canvas");
         document.body.appendChild(canvas);
-	const c = canvas.getContext('2d')
+        const c = canvas.getContext('2d')
+
+        let audio = initSound();
+        wind(audio);
 
 	function resize() {
 		setTimeout(()=>{
@@ -40,20 +98,24 @@ function main() {
 		}, 10)
 	}
 
-    function action(key: Number) {
-		switch (key) {
+        function action(key: Number) {
+                switch (key) {
 			case 65:	// A
 			case 72:	// H
-				px -= v; break;	// left
+		                px -= v; break;	// left
 			case 68:	// D
 			case 76:	// L
-				px += v; break;	// right
+		                px += v; break;	// right
 			case 87:	// W
 			case 75:	// K
-				py -= v; break;	// up
+		                py -= v; break;	// up
 			case 83:	// S
 			case 74:	// J
-				py += v; break;	// down
+		                py += v; break;	// down
+                        case 78:        // n
+                                knock(audio); break;
+                        case 81:        // q
+                                toggleSound(audio.totalGain); break;
 			default: console.log(key)
 		}
 		draw()
