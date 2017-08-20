@@ -79,11 +79,11 @@ function main() {
 
 		const steps = 32; // number of gradient steps
 		const lightScale = 15; // controls how quickly the light falls off
-		for (var i=1; i < steps+1; i++) {
-			let x = lightScale * Math.pow(i / steps, 2) + 1;
-			let alpha = intensity / ((x*x));
-			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`);
-		}
+                for (var i = 1; i < steps + 1; i++) {
+                        let x = lightScale * Math.pow(i / steps, 2) + 1;
+                        let alpha = intensity / (x * x);
+                        g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`);
+                }
 
 		c.fillStyle = g
 		c.fillRect(cx - lr, cy - lr, lr*2, lr*2)
