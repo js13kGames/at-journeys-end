@@ -74,8 +74,8 @@ function main() {
 		const lr = 800;
 		const g = c.createRadialGradient(cx, cy, 0, cx, cy, lr)
 
-		const baseIntensity = 1, flickerAmount = 0.1;
-		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin (t) + Math.sin (2.2 * t + 5.52) + Math.sin (2.9 * t + 0.93) + Math.sin(4.6 * t + 8.94))) / 4;
+                const baseIntensity = 1, flickerAmount = 0.1;
+                const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(t) + Math.sin(2.2 * t + 5.52) + Math.sin(2.9 * t + 0.93) + Math.sin(4.6 * t + 8.94))) / 4;
 
 		const steps = 32; // number of gradient steps
 		const lightScale = 15; // controls how quickly the light falls off
