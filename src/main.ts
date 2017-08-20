@@ -19,11 +19,12 @@ function main() {
 	let px = mapSize / 2
 	let py = mapSize / 2
 	let v = 5	// velocity
+	let t = 0   // time
 
 	const trees = generateTrees(mapSize, 150)
 
-        const canvas = <HTMLCanvasElement>document.createElement("canvas");
-        document.body.appendChild(canvas);
+    const canvas = <HTMLCanvasElement>document.createElement("canvas");
+    document.body.appendChild(canvas);
 	const c = canvas.getContext('2d')
 
 	function resize() {
@@ -64,16 +65,27 @@ function main() {
 	resize()
 
 	function draw() {
+		t += 0.1;
 
 		// clear the canvas
 		c.fillStyle = "rgba(0,0,0,1)"
 		c.fillRect(0, 0, w, h)
 
 		// draw the light
-		const lr = 300
+		const lr = 800;
 		const g = c.createRadialGradient(cx, cy, 0, cx, cy, lr)
-		g.addColorStop(0, "#a0a090")
-		g.addColorStop(1, "#000000")
+ 
+		const baseIntensity = 1, flickerAmount = 0.1;
+		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin (t) + Math.sin (2.2 * t + 5.52) + Math.sin (2.9 * t + 0.93) + Math.sin(4.6 * t + 8.94))) / 4;
+		
+		const steps = 32; // number of gradient steps
+		const lightScale = 15; // controls how quickly the light falls off
+		for (var i=1; i < steps+1; i++) {
+			let x = lightScale * Math.pow(i / steps, 2) + 1;
+			let alpha = intensity / ((x*x));
+			g.addColorStop((x - 1) / lightScale, "rgba(255,255,255,"+alpha+")");
+		}
+
 		c.fillStyle = g
 		c.fillRect(cx - lr, cy - lr, lr*2, lr*2)
 
@@ -82,16 +94,10 @@ function main() {
 		c.strokeStyle = "blue"
 		c.strokeRect(cx - pr, cy - pr/2, pr*2, pr)
 
-/*
-		const trees = [
-			Tree(1020, 900, 10),
-			Tree(1070, 1050, 15),
-			Tree(900, 930, 18),
-			Tree(910, 1080, 12)
-		]
-*/
 		trees.forEach(drawTree)
 
+		// refactor the game loop
+		setTimeout(draw, 33);
 		//window.requestAnimationFrame(draw)
 	}
 
