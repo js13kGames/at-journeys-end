@@ -73,16 +73,16 @@ function main() {
 		// draw the light
 		const lr = 800;
 		const g = c.createRadialGradient(cx, cy, 0, cx, cy, lr)
- 
+
 		const baseIntensity = 1, flickerAmount = 0.1;
 		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin (t) + Math.sin (2.2 * t + 5.52) + Math.sin (2.9 * t + 0.93) + Math.sin(4.6 * t + 8.94))) / 4;
-		
+
 		const steps = 32; // number of gradient steps
 		const lightScale = 15; // controls how quickly the light falls off
 		for (var i=1; i < steps+1; i++) {
 			let x = lightScale * Math.pow(i / steps, 2) + 1;
 			let alpha = intensity / ((x*x));
-			g.addColorStop((x - 1) / lightScale, "rgba(255,255,255,"+alpha+")");
+			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`);
 		}
 
 		c.fillStyle = g
