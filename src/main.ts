@@ -57,7 +57,6 @@ function main() {
 				py += v; break;	// down
 			default: console.log(key)
 		}
-		draw()
 	}
 
 	window.addEventListener("resize", resize)
