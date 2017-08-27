@@ -1,3 +1,4 @@
+import { AudioState, initSound, toggleSound, wind, knock } from './sound';
 //	The projection is Orthographic; all rays are perpendicular to the view plane.
 //	World Coordinates (W) are meters in page coordinates (to match canvas):
 //	- top left is (0,0) and bottom right is (MaxX, MaxY),
@@ -67,6 +68,9 @@ function main() {
 	// view dimensions
 	let worldViewRadius = 50
 
+        let audioState = initSound();
+        wind(audioState);
+
 	// player position and rotation
 	const upAngle = 3 * Math.PI / 2
 	let direction = upAngle
@@ -91,7 +95,9 @@ function main() {
 			case 87: playerXY = move(playerXY, direction, 1); break;	// W up
 			case 83: playerXY = move(playerXY, direction + Math.PI, 1); break;	// S down
 			case 73: worldViewRadius--; break;	// I zoom in
-			case 75: worldViewRadius++; break;	// I zoom out
+			case 75: worldViewRadius++; break;	// I // zoom out
+                        case 78: knock(audioState); break;      // n 'knock'
+                        case 81: toggleSound(audioState); break; // toggle the sound on/off
 			default: console.log(key)
 		}
 	}
