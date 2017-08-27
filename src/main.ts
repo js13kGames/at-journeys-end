@@ -1,159 +1,134 @@
-interface Tree {
-	x: number,
-	y: number,
-	r: number
+//	The projection is Orthographic; all rays are perpendicular to the view plane.
+//	World Coordinates (W) are meters in page coordinates (to match canvas):
+//	- top left is (0,0) and bottom right is (MaxX, MaxY),
+//	- angles are measured clockwise: 0=>right, PI/2=>down, PI=>left, 3PI/2=>up.
+// The canvas is a camera of size (CW, CH) in pixels that:
+//	- always looks straight down at a point in W (CX, CY),
+//	- is rotated by CA in radians,
+//	- views an area of diameter CD.
+
+interface Point {
+	x: number
+	y: number
 }
-const Tree = (x: number, y: number, r: number)=>({ x: x, y: y, r: r })
+const Point = (x: number, y: number)=>({ x: x, y: y })
+
+interface Size {
+	w: number
+	h: number
+}
+const Size = (w: number, h: number)=>({ w: w, h: h })
+
+interface Tree {
+	center: Point
+	radius: number
+}
+const Tree = (center: Point, radius: number)=>({ center: center, radius: radius })
+
+// map world coordinates onto canvas
+interface Transform {
+	point: (wp: Point)=>Point
+	distance: (d: number)=>number
+}
+
+function getTransform(player: Point, wViewRadius: number, angle: number, canvasSize: Size): Transform {
+
+	// precalculate canvas center, canvas radius, and scale
+	const cx = canvasSize.w / 2
+	const cy = canvasSize.h / 2
+	const cr = Math.sqrt(cx * cx + cy * cy)
+	const scale = cr / wViewRadius
+
+	return {
+		point: (p: Point)=>{
+			const dx = p.x - player.x
+			const dy = p.y - player.y
+			const a = Math.atan2(dy, dx) - angle
+			const d = Math.sqrt(dx * dx + dy * dy) * scale
+			return Point(cx + d * Math.cos(a), cy + d * Math.sin(a))
+		},
+		distance: (d: number)=>d * scale
+	}
+}
 
 function main() {
 	const body = document.body.style
 	body.margin = "0px"
 	body.overflow = "hidden"
 
-	let w: number
-	let h: number
-	let cx: number
-	let cy: number
-
-	const mapSize = 2000
-	let px = mapSize / 2
-	let py = mapSize / 2
-	let v = 5	// velocity
-
-	const trees = generateTrees(mapSize, 150)
-
-        const canvas = <HTMLCanvasElement>document.createElement("canvas");
-        document.body.appendChild(canvas);
+	const canvas = <HTMLCanvasElement>document.createElement("canvas");
+	document.body.appendChild(canvas);
 	const c = canvas.getContext('2d')
+
+	// canvas dimensions
+	let canvasSize: Size
+	let canvasCenter: Point
+
+	// view dimensions
+	let worldViewRadius = 50
+
+	// player position and rotation
+	const upAngle = 3 * Math.PI / 2
+	let direction = upAngle
+	let playerXY = Point(100, 100)
 
 	function resize() {
 		setTimeout(()=>{
-			w = window.innerWidth
-			h = window.innerHeight
-			canvas.style.width = w + "px"
-			canvas.style.height = h + "px"
-			canvas.width = w
-			canvas.height = h
-			cx = Math.round(w / 2)
-			cy = Math.round(h / 2)
+			canvasSize = Size(window.innerWidth, window.innerHeight)
+			canvas.style.width = canvasSize.w + "px"
+			canvas.style.height = canvasSize.h + "px"
+			canvas.width = canvasSize.w
+			canvas.height = canvasSize.h
+			canvasCenter = Point(Math.round(canvasSize.w / 2), Math.round(canvasSize.h / 2))
 			draw()
 		}, 10)
 	}
 
-    function action(key: Number) {
+	function action(key: Number) {
 		switch (key) {
-			case 65:	// A
-			case 72:	// H
-				px -= v; break;	// left
-			case 68:	// D
-			case 76:	// L
-				px += v; break;	// right
-			case 87:	// W
-			case 75:	// K
-				py -= v; break;	// up
-			case 83:	// S
-			case 74:	// J
-				py += v; break;	// down
+			case 65: direction -= 0.1; break;	// A left
+			case 68: direction += 0.1; break;	// D right
+			case 87: playerXY = move(playerXY, direction, 1); break;	// W up
+			case 83: playerXY = move(playerXY, direction + Math.PI, 1); break;	// S down
+			case 73: worldViewRadius--; break;	// I zoom in
+			case 75: worldViewRadius++; break;	// I zoom out
 			default: console.log(key)
 		}
-		draw()
+	}
+
+	function move(from: Point, direction: number, distance: number): Point {
+		return Point(from.x + Math.cos(direction) * distance, from.y + Math.sin(direction) * distance)
 	}
 
 	window.addEventListener("resize", resize)
 	window.addEventListener("keydown", e=>action(e.keyCode))
 	resize()
 
+	const trees = [Tree(Point(110, 120), 0.5)]
+
 	function draw() {
 
 		// clear the canvas
-		c.fillStyle = "rgba(0,0,0,1)"
-		c.fillRect(0, 0, w, h)
+		c.fillStyle = "rgba(128,128,128,1)"
+		c.fillRect(0, 0, canvasSize.w, canvasSize.h)
 
-		// draw the light
-		const lr = 300
-		const g = c.createRadialGradient(cx, cy, 0, cx, cy, lr)
-		g.addColorStop(0, "#a0a090")
-		g.addColorStop(1, "#000000")
-		c.fillStyle = g
-		c.fillRect(cx - lr, cy - lr, lr*2, lr*2)
-
-		// draw the player
-		const pr = 20
+		// draw the center
 		c.strokeStyle = "blue"
-		c.strokeRect(cx - pr, cy - pr/2, pr*2, pr)
+		c.strokeRect(canvasCenter.x - 5, canvasCenter.y - 5, 10, 10)
 
-/*
-		const trees = [
-			Tree(1020, 900, 10),
-			Tree(1070, 1050, 15),
-			Tree(900, 930, 18),
-			Tree(910, 1080, 12)
-		]
-*/
-		trees.forEach(drawTree)
+		const transform = getTransform(playerXY, worldViewRadius, direction - upAngle, canvasSize)
+		trees.forEach(tree=>{
+			const vCenter = transform.point(tree.center)
+			const vRadius = transform.distance(tree.radius)
+			c.beginPath()
+			c.fillStyle = "green"
+			c.arc(vCenter.x, vCenter.y, vRadius, 0, Math.PI * 2)
+			c.fill()
+		})
 
-		//window.requestAnimationFrame(draw)
-	}
-
-	function drawTree(t: Tree) {
-
-		// trunk
-		const tx = cx + t.x - px
-		const ty = cy + t.y - py
-
-		// shadow
-		c.beginPath()
-		const dx = cx - tx
-		const dy = cy - ty
-		const a = Math.atan2(dy, dx)
-
-		// left edge of tree
-		const a1 = a + Math.PI / 2
-		const p1x = tx + Math.cos(a1) * t.r
-		const p1y = ty + Math.sin(a1) * t.r
-
-		// left limit of shadow
-		const a2 = Math.atan2(p1y - cy, p1x - cx)
-		const p2x = cx + Math.cos(a2) * (w + h)
-		const p2y = cy + Math.sin(a2) * (w + h)
-
-		// right edge of tree
-		const a3 = a - Math.PI / 2
-		const p3x = tx + Math.cos(a3) * t.r
-		const p3y = ty + Math.sin(a3) * t.r
-
-		// right limit of shadow
-		const a4 = Math.atan2(p3y - cy, p3x - cx)
-		const p4x = cx + Math.cos(a4) * (w + h)
-		const p4y = cy + Math.sin(a4) * (w + h)
-
-		c.beginPath()
-		c.moveTo(p1x, p1y)
-		c.lineTo(p2x, p2y)
-		c.lineTo(p4x, p4y)
-		c.lineTo(p3x, p3y)
-		c.fillStyle = "black"
-		c.fill()
-		c.beginPath()
-		c.arc(tx, ty, t.r, 0, 2*Math.PI)
-		c.fill()
-	}
-
-	// divide the map into zones and put one tree in each zone
-	function generateTrees(mapSize: number, zoneSize: number): Tree[] {
-		const trees = [] as Tree[]
-		for (let zx = 0; zx * zoneSize < mapSize; zx++) {
-			for (let zy = 0; zy * zoneSize < mapSize; zy++) {
-				const r = Math.random() * 20 + 8
-				const tx = zx * zoneSize + Math.random() * (zoneSize - r * 2) + r
-				const ty = zy * zoneSize + Math.random() * (zoneSize - r * 2) + r
-				if ((tx - px) * (tx - px) + (ty - py) * (ty - py) > 3000) {
-					trees.push(Tree(tx, ty, r))
-				}
-			}
-		}
-		return trees
+		// refactor the game loop
+		window.requestAnimationFrame(draw)
 	}
 }
 
-main();
+main()
