@@ -1,3 +1,4 @@
+import { AudioState, initSound, toggleSound, wind, knock } from './sound';
 //	The projection is Orthographic; all rays are perpendicular to the view plane.
 //	World Coordinates (W) are meters in page coordinates (to match canvas):
 //	- top left is (0,0) and bottom right is (MaxX, MaxY),
@@ -60,13 +61,17 @@ function main() {
     document.body.appendChild(canvas);
     const c = canvas.getContext('2d')
 
-    let t = 0   // time
     // canvas dimensions
     let canvasSize: Size
     let canvasCenter: Point
 
     // view dimensions
     let worldViewRadius = 50
+
+    let t = 0;
+
+    let audioState = initSound();
+    wind(audioState);
 
     // player position and rotation
     const upAngle = 3 * Math.PI / 2
@@ -81,7 +86,7 @@ function main() {
 	    canvas.width = canvasSize.w
 	    canvas.height = canvasSize.h
 	    canvasCenter = Point(Math.round(canvasSize.w / 2), Math.round(canvasSize.h / 2))
- 	    draw();
+	    draw()
 	}, 10)
     }
 
@@ -92,7 +97,9 @@ function main() {
 	case 87: playerXY = move(playerXY, direction, 1); break;	// W up
 	case 83: playerXY = move(playerXY, direction + Math.PI, 1); break;	// S down
 	case 73: worldViewRadius--; break;	// I zoom in
-	case 75: worldViewRadius++; break;	// I zoom out
+	case 75: worldViewRadius++; break;	// I // zoom out
+        case 78: knock(audioState); break;      // n 'knock'
+        case 81: toggleSound(audioState); break; // toggle the sound on/off
 	default: console.log(key)
 	}
     }
@@ -108,48 +115,46 @@ function main() {
     const trees = [Tree(Point(110, 120), 0.5)]
 
     function draw() {
-	t += 0.1;
+        t += 0.1;
 
-	// clear the canvas
-	c.fillStyle = "rgba(0,0,0,1)"
-    	c.fillRect(0, 0, canvasSize.w, canvasSize.h);
+        // clear the canvas
+        c.fillStyle = "rgba(0,0,0,1)"
+        c.fillRect(0, 0, canvasSize.w, canvasSize.h);
 
-	// draw the light
-	const lr = 800;
-    	const g = c.createRadialGradient(canvasCenter.x, canvasCenter.y, 0, canvasCenter.x, canvasCenter.y, lr);
+        // draw the light
+        const lr = 800;
+        const g = c.createRadialGradient(canvasCenter.x, canvasCenter.y, 0, canvasCenter.x, canvasCenter.y, lr);
 
         const baseIntensity = 1, flickerAmount = 0.1;
         const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(t) + Math.sin(2.2 * t + 5.52) + Math.sin(2.9 * t + 0.93) + Math.sin(4.6 * t + 8.94))) / 4;
 
-	const steps = 32; // number of gradient steps
-	const lightScale = 15; // controls how quickly the light falls off
+        const steps = 32; // number of gradient steps
+        const lightScale = 15; // controls how quickly the light falls off
         for (var i = 1; i < steps + 1; i++) {
             let x = lightScale * Math.pow(i / steps, 2) + 1;
             let alpha = intensity / (x * x);
             g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`);
         }
 
-	c.fillStyle = g
-	c.fillRect(canvasCenter.x - lr, canvasCenter.y - lr, lr*2, lr*2)
+        c.fillStyle = g
+        c.fillRect(canvasCenter.x - lr, canvasCenter.y - lr, lr*2, lr*2)
 
-	//trees.forEach(drawTree);
+	// draw the center
+	c.strokeStyle = "blue"
+	c.strokeRect(canvasCenter.x - 5, canvasCenter.y - 5, 10, 10)
 
-        // draw the center
-        c.strokeStyle = "blue"
-        c.strokeRect(canvasCenter.x - 5, canvasCenter.y - 5, 10, 10)
-
-        const transform = getTransform(playerXY, worldViewRadius, direction - upAngle, canvasSize)
-        trees.forEach(tree=>{
+	const transform = getTransform(playerXY, worldViewRadius, direction - upAngle, canvasSize)
+	trees.forEach(tree=>{
 	    const vCenter = transform.point(tree.center)
 	    const vRadius = transform.distance(tree.radius)
 	    c.beginPath()
 	    c.fillStyle = "green"
 	    c.arc(vCenter.x, vCenter.y, vRadius, 0, Math.PI * 2)
 	    c.fill()
-        })
+	})
 
-        // refactor the game loop
-        window.requestAnimationFrame(draw)
+	// refactor the game loop
+	window.requestAnimationFrame(draw)
     }
 }
 
