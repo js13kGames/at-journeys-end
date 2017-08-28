@@ -97,7 +97,7 @@ function main() {
 			case 87: playerXY = move(playerXY, direction, 1); break;	// W up
 			case 83: playerXY = move(playerXY, direction + Math.PI, 1); break;	// S down
 			case 73: worldViewRadius--; break;	// I zoom in
-			case 75: worldViewRadius++; break;	// I // zoom out
+			case 75: worldViewRadius++; break;	// I zoom out
 			case 78: knock(audioState); break;      // n 'knock'
 			case 81: toggleSound(audioState); break; // toggle the sound on/off
 			default: console.log(key)
