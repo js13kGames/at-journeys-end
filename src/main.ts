@@ -1,4 +1,4 @@
-import { AudioState, initSound, toggleSound, wind, knock } from './sound';
+import { AudioState, initSound, toggleSound, wind, knock, organNote } from './sound';
 //	The projection is Orthographic; all rays are perpendicular to the view plane.
 //	World Coordinates (W) are meters in page coordinates (to match canvas):
 //	- top left is (0,0) and bottom right is (MaxX, MaxY),
@@ -100,6 +100,7 @@ function main() {
 			case 75: worldViewRadius++; break;	// I zoom out
 			case 78: knock(audioState); break;      // n 'knock'
 			case 81: toggleSound(audioState); break; // toggle the sound on/off
+			case 79: organNote(audioState); break;
 			default: console.log(key)
 		}
 	}
