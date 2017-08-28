@@ -1,7 +1,8 @@
 {
-  "indentSize": 8,
-  "tabSize": 8,
-  "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
-  "placeOpenBraceOnNewLineForFunctions": false,
-  "placeOpenBraceOnNewLineForControlBlocks": false
+    "indentSize": 8,
+    "tabSize": 8,
+    "convertTabsToSpaces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "placeOpenBraceOnNewLineForControlBlocks": false
 }
