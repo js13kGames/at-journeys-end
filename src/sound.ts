@@ -1,18 +1,27 @@
+const GAME_VOLUME = 0.8;
+
+const organR = new Float32Array([0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.0075, 0.00375]);
+const organI = new Float32Array(organR.length);
+let organTable = (context: AudioContext) => context.createPeriodicWave(organR, organI);
+
 export interface AudioState {
 	context: AudioContext;
 	totalGain: GainNode;
+	organWave: PeriodicWave;
 }
 
 export function initSound(): AudioState {
 	let context = new AudioContext();
-	var totalGain = context.createGain();
+	let totalGain = context.createGain();
+	totalGain.gain.value = GAME_VOLUME;
 	totalGain.connect(context.destination);
+	let organWave = organTable(context);
 
-	return { context, totalGain }
+	return { context, totalGain, organWave };
 }
 
 export function toggleSound(audio: AudioState) {
-	audio.totalGain.gain.value = audio.totalGain.gain.value ? 0 : 1;
+	audio.totalGain.gain.value = GAME_VOLUME * (audio.totalGain.gain.value ? 0 : 1);
 }
 
 // The basic random noise generator was lifted from this helpful post:
@@ -55,27 +64,55 @@ export function knock(audio: AudioState) {
 	oscillator.stop(now + 0.1);
 }
 
-export function organNote(audio: AudioState) {
-	var real = new Float32Array([0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.0075, 0.00375]);
-	var imag = new Float32Array(real.length);
-	var organTable = audio.context.createPeriodicWave(real, imag);
+// TODO: Refactor so we don't care about start / end (see playOrgan).
+function playOrganNote(audio: AudioState, frequency: number, start: number, end: number) {
+	var gain = audio.context.createGain();
+	gain.connect(audio.totalGain);
 
-	var osc_d = audio.context.createOscillator();
-	osc_d.setPeriodicWave(organTable);
-	osc_d.frequency.value = 146.83;
-	osc_d.connect(audio.totalGain);
+	let o = audio.context.createOscillator();
+	o.setPeriodicWave(audio.organWave);
+	o.frequency.value = frequency;
+	o.connect(gain);
 
-	var osc_f = audio.context.createOscillator();
-	osc_f.setPeriodicWave(organTable);
-	osc_f.frequency.value = 174.61;
-	osc_f.connect(audio.totalGain);
+	// TODO: How do we get smoother approach / falloff?
+	let absStart: number = audio.context.currentTime + start;
+	let absEnd: number = audio.context.currentTime + end;
+	gain.gain.setValueAtTime(0.01, absStart)
+	gain.gain.exponentialRampToValueAtTime(1, absStart + 0.01);
+	gain.gain.exponentialRampToValueAtTime(0.1, absEnd + 0.025);
+	o.start(absStart);
+	o.stop(absEnd);
+}
 
-	var osc_a = audio.context.createOscillator();
-	osc_a.setPeriodicWave(organTable);
-	osc_a.frequency.value = 220.0;
-	osc_a.connect(audio.totalGain);
+// TODO: Why?
+interface Map<T> {
+	[key: string]: T;
+};
 
-	osc_d.start(0);
-	osc_f.start(0);
-	osc_a.start(0);
+// TODO: Expand this to include a full range of notes
+const NOTE_FREQS: Map<number> = {
+	"C3": 130.81,
+	"D3": 146.83,
+	"E3": 164.81,
+	"F3": 174.61,
+	"G3": 196.00,
+	"A3": 220.00,
+	"B3": 246.94
+};
+
+// TODO: Fix the types
+function playScore(audio: AudioState, score: any) {
+	score.forEach((n: any) => playOrganNote(audio, NOTE_FREQS[n[0]], n[1], n[2]));
+}
+
+export function playOrgan(audio: AudioState) {
+	// TODO: We shouldn't have to specify absolute times just to get a chord.
+	// Refactor this to be able to just play a note or chord, and a duration.
+	let score = [["D3", 0, 0.6], ["F3", 0, 0.6], ["A3", 0, 0.6],
+	             ["E3", 0.6, 0.9],
+	             ["F3", 0.9, 1.2],
+	             ["G3", 1.2, 1.5],
+	             ["D3", 1.5, 2.1], ["F3", 1.5, 2.1], ["A3", 1.5, 2.1],
+	             ["D3", 2.4, 3.6], ["F3", 2.4, 3.6], ["A3", 2.4, 3.6]];
+	playScore(audio, score);
 }
