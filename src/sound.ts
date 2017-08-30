@@ -48,22 +48,6 @@ export function wind(audio: AudioState) {
 	node.connect(gain);
 }
 
-export function knock(audio: AudioState) {
-	var gain = audio.context.createGain();
-	gain.connect(audio.totalGain);
-	let now = audio.context.currentTime
-	gain.gain.setValueAtTime(1, now);
-	gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-
-	let oscillator = audio.context.createOscillator();
-	oscillator.type = "triangle";
-	oscillator.frequency.value = 80;
-	oscillator.connect(gain);
-
-	oscillator.start(now);
-	oscillator.stop(now + 0.1);
-}
-
 // TODO: Refactor so we don't care about start / end (see playOrgan).
 function playOrganNote(audio: AudioState, frequency: number, start: number, end: number) {
 	var gain = audio.context.createGain();
