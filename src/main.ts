@@ -1,105 +1,75 @@
-import { AudioState, initSound, toggleSound, wind, knock } from './sound';
-//	The projection is Orthographic; all rays are perpendicular to the view plane.
-//	World Coordinates (W) are meters in page coordinates (to match canvas):
-//	- top left is (0,0) and bottom right is (MaxX, MaxY),
-//	- angles are measured clockwise: 0=>right, PI/2=>down, PI=>left, 3PI/2=>up.
-// The canvas is a camera of size (CW, CH) in pixels that:
-//	- always looks straight down at a point in W (CX, CY),
-//	- is rotated by CA in radians,
-//	- views an area of diameter CD.
-
-interface Point {
-	x: number
-	y: number
-}
-const Point = (x: number, y: number) => ({ x: x, y: y })
-
-interface Size {
-	w: number
-	h: number
-}
-const Size = (w: number, h: number) => ({ w: w, h: h })
-
-interface Tree {
-	center: Point
-	radius: number
-}
-const Tree = (center: Point, radius: number) => ({ center: center, radius: radius })
-
-// map world coordinates onto canvas
-interface Transform {
-	point: (wp: Point) => Point
-	distance: (d: number) => number
-}
-
-function getTransform(player: Point, wViewRadius: number, angle: number, canvasSize: Size): Transform {
-
-	// precalculate canvas center, canvas radius, and scale
-	const cx = canvasSize.w / 2
-	const cy = canvasSize.h / 2
-	const cr = Math.sqrt(cx * cx + cy * cy)
-	const scale = cr / wViewRadius
-
-	return {
-		point: (p: Point) => {
-			const dx = p.x - player.x
-			const dy = p.y - player.y
-			const a = Math.atan2(dy, dx) - angle
-			const d = Math.sqrt(dx * dx + dy * dy) * scale
-			return Point(cx + d * Math.cos(a), cy + d * Math.sin(a))
-		},
-		distance: (d: number) => d * scale
-	}
-}
-
 function main() {
 	const body = document.body.style
 	body.margin = "0px"
 	body.overflow = "hidden"
 
-	const canvas = <HTMLCanvasElement>document.createElement("canvas");
-	document.body.appendChild(canvas);
-	const c = canvas.getContext('2d')
+	const canvas = <HTMLCanvasElement>document.createElement("canvas")
+	document.body.appendChild(canvas)
 
-	// canvas dimensions
-	let canvasSize: Size
-	let canvasCenter: Point
+	let audioState = initSound()
+	wind(audioState)
 
-	// view dimensions
-	let worldViewRadius = 50
-
-	let t = 0;
-
-	let audioState = initSound();
-	wind(audioState);
-
-	// player position and rotation
 	const upAngle = 3 * Math.PI / 2
-	let direction = upAngle
-	let playerXY = Point(100, 100)
+
+	const config: Config = {
+		context2d: canvas.getContext('2d'),
+		canvasSize: undefined,
+		canvasCenter: undefined,
+		worldViewRadius: 50,
+		time: 0,
+		direction: upAngle,
+		playerXY: Point(100, 100),
+		cameraXY: Point(100, 100),
+		cameraAngle: upAngle,
+		lightHeight: 1,
+		transform: undefined,
+		now: new Date().getTime(),
+		frameMS: 0
+	}
 
 	function resize() {
 		setTimeout(() => {
-			canvasSize = Size(window.innerWidth, window.innerHeight)
-			canvas.style.width = canvasSize.w + "px"
-			canvas.style.height = canvasSize.h + "px"
-			canvas.width = canvasSize.w
-			canvas.height = canvasSize.h
-			canvasCenter = Point(Math.round(canvasSize.w / 2), Math.round(canvasSize.h / 2))
+			const w = window.innerWidth
+			const h = window.innerHeight
+
+			// update canvas size and drawing area
+			canvas.style.width = w + "px"
+			canvas.style.height = h + "px"
+			canvas.width = w
+			canvas.height = h
+
+			config.canvasSize = Size(w, h)
+			config.canvasCenter = Point(Math.round(w / 2), Math.round(h / 2))
 			draw()
 		}, 10)
 	}
 
-	function action(key: Number) {
+	let walkSpeed = 0
+	let turnSpeed = 0
+
+	function keyDown(key: Number) {
 		switch (key) {
-			case 65: direction -= 0.1; break;	// A left
-			case 68: direction += 0.1; break;	// D right
-			case 87: playerXY = move(playerXY, direction, 1); break;	// W up
-			case 83: playerXY = move(playerXY, direction + Math.PI, 1); break;	// S down
-			case 73: worldViewRadius--; break;	// I zoom in
-			case 75: worldViewRadius++; break;	// I zoom out
-			case 78: knock(audioState); break;      // n 'knock'
-			case 81: toggleSound(audioState); break; // toggle the sound on/off
+			case 65: turnSpeed = -0.025; break;			// A left
+			case 68: turnSpeed = 0.025; break;			// D right
+			case 87: walkSpeed = 0.05; break;			// W up
+			case 83: walkSpeed = -0.05; break;			// S down
+			case 73: config.worldViewRadius--; break;	// I zoom in
+			case 75: config.worldViewRadius++; break;	// K zoom out
+			case 78: knock(audioState); break;     		// N 'knock'
+			case 81: toggleSound(audioState); break;	// T toggle sound
+			case 79: organNote(audioState); break;		// O organ
+			case 89: config.lightHeight += 0.1; break;	// Y light higher
+			case 72: config.lightHeight -= 0.1; break;	// H light lower
+			default: console.log(key)
+		}
+	}
+
+	function keyUp(key: Number) {
+		switch (key) {
+			case 65: turnSpeed = 0; break;	// A left
+			case 68: turnSpeed = 0; break;	// D right
+			case 87: walkSpeed = 0; break;	// W up
+			case 83: walkSpeed = 0; break;	// S down
 			default: console.log(key)
 		}
 	}
@@ -109,53 +79,110 @@ function main() {
 	}
 
 	window.addEventListener("resize", resize)
-	window.addEventListener("keydown", e => action(e.keyCode))
+	window.addEventListener("keydown", e => keyDown(e.keyCode))
+	window.addEventListener("keyup", e => keyUp(e.keyCode))
 	resize()
 
-	const trees = [Tree(Point(110, 120), 0.5)]
+	const trees = generateTrees(1000, 6)
+	//const trees = []
+
+	const blocks = [
+		Block(Point(120, 110), Size(2, 0.4), 0, 1),
+		Block(Point(140, 120), Size(10, 0.4), 0),
+		Block(Point(144.8, 123.3), Size(0.4, 7), 0),
+		Block(Point(142, 127), Size(6, 0.4), 0),
+		Block(Point(136.5, 127), Size(3, 0.4), 0),
+		Block(Point(135.2, 123.3), Size(0.4, 7), 0)
+	]
+
+	// divide the map into zones and put one tree in each zone
+	function generateTrees(mapSize: number, zoneSize: number): Tree[] {
+		const trees = [] as Tree[]
+		for (let zx = 0; zx * zoneSize < mapSize; zx++) {
+			for (let zy = 0; zy * zoneSize < mapSize; zy++) {
+				const r = Math.random() / 2 + 0.3
+				const tx = zx * zoneSize + Math.random() * (zoneSize - r * 2) + r
+				const ty = zy * zoneSize + Math.random() * (zoneSize - r * 2) + r
+				trees.push(Tree(Point(tx, ty), r))
+			}
+		}
+		return trees
+	}
 
 	function draw() {
-		t += 0.1;
+
+		// update time
+		const now = new Date().getTime()
+		config.frameMS = now - config.now
+		config.now = now
+		config.time += 0.1
+
+		// update player
+		config.playerXY = move(config.playerXY, config.direction, walkSpeed)
+		config.direction += turnSpeed
+
+		// update camera
+		const factor = 0.2
+		config.cameraXY.x += (config.playerXY.x - config.cameraXY.x) * factor
+		config.cameraXY.y += (config.playerXY.y - config.cameraXY.y) * factor
+		config.cameraAngle += (config.direction - config.cameraAngle) * factor
 
 		// clear the canvas
-		c.fillStyle = "rgba(0,0,0,1)"
-		c.fillRect(0, 0, canvasSize.w, canvasSize.h);
+		config.context2d.fillStyle = "rgba(0,0,0,1)"
+		config.context2d.fillRect(0, 0, config.canvasSize.w, config.canvasSize.h)
+
+		config.transform = getTransform(config)
 
 		// draw the light
-		const lr = 800;
-		const g = c.createRadialGradient(canvasCenter.x, canvasCenter.y, 0, canvasCenter.x, canvasCenter.y, lr);
+		const lr = 800
+		const lightXY = config.transform.point(config.playerXY)
+		const g = config.context2d.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, lr)
 
-		const baseIntensity = 1, flickerAmount = 0.1;
-		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(t) + Math.sin(2.2 * t + 5.52) + Math.sin(2.9 * t + 0.93) + Math.sin(4.6 * t + 8.94))) / 4;
+		const baseIntensity = 1, flickerAmount = 0.1
+		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(config.time) +
+			Math.sin(2.2 * config.time + 5.52) + Math.sin(2.9 * config.time + 0.93) +
+			Math.sin(4.6 * config.time + 8.94))) / 4
 
 		const steps = 32; // number of gradient steps
 		const lightScale = 15; // controls how quickly the light falls off
 		for (var i = 1; i < steps + 1; i++) {
-			let x = lightScale * Math.pow(i / steps, 2) + 1;
-			let alpha = intensity / (x * x);
-			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`);
+			let x = lightScale * Math.pow(i / steps, 2) + 1
+			let alpha = intensity / (x * x)
+			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
 		}
 
-		c.fillStyle = g
-		c.fillRect(canvasCenter.x - lr, canvasCenter.y - lr, lr * 2, lr * 2)
+		config.context2d.fillStyle = g
+		config.context2d.fillRect(lightXY.x - lr, lightXY.y - lr, lr * 2, lr * 2)
 
 		// draw the center
-		c.strokeStyle = "blue"
-		c.strokeRect(canvasCenter.x - 5, canvasCenter.y - 5, 10, 10)
+		config.context2d.strokeStyle = "blue"
+		config.context2d.strokeRect(lightXY.x - 5, lightXY.y - 5, 10, 10)
 
-		const transform = getTransform(playerXY, worldViewRadius, direction - upAngle, canvasSize)
-		trees.forEach(tree => {
-			const vCenter = transform.point(tree.center)
-			const vRadius = transform.distance(tree.radius)
-			c.beginPath()
-			c.fillStyle = "green"
-			c.arc(vCenter.x, vCenter.y, vRadius, 0, Math.PI * 2)
-			c.fill()
+		// draw all trees
+		config.context2d.beginPath()
+		trees.forEach(tree=>{
+			drawTree(tree, config)
 		})
+		config.context2d.fillStyle = "black"
+		config.context2d.fill()
 
-		// refactor the game loop
+		// draw all blocks
+		//config.context2d.beginPath()
+		config.context2d.shadowColor = "black"
+		config.context2d.shadowBlur = 5
+
+		blocks[0].angle += 0.01
+		blocks.forEach(block=>{
+			drawBlock(block, config)
+		})
+		//config.context2d.fillStyle = "black"
+		//config.context2d.fill()
+
+		const frameRate = Math.round(1000 / config.frameMS)
+		config.context2d.fillStyle = "yellow"
+		config.context2d.font = "12px Arial"
+		config.context2d.fillText(frameRate + " fps", 5, 15)
+
 		window.requestAnimationFrame(draw)
 	}
 }
-
-main()
