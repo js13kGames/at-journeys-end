@@ -6,8 +6,8 @@
 //scale y
 //scale z(up)
 //rotation around up axis
-//color: 0-black, 
-const cubes = [
+//color: 0-black,
+export const cubes = [
 	[22, 20, 0, 0.4, 0.4, 2, 0, 0],
 	[20, 20, 0, 0.4, 0.4, 2, 0, 0],
 	[18, 20, 0, 0.4, 0.4, 2, 0, 0],
@@ -54,8 +54,8 @@ const cubes = [
 //scale x
 //scale y
 //rotation around up axis
-//color: 0-black, 
-const planes = [
+//color: 0-black,
+export const planes = [
 	[-28.22, 2.74, 0.4533609, 1.12632, 18.87602, 0],
 	[-41.07, 50.61, 0.4, 4, 312.8353, 0],
 	[-25.63, 24.51, 0.3999999, 1, 15.23949, 0],

@@ -1,3 +1,8 @@
+import { getTransform, Config, Point, Size } from './geometry';
+import { cubes, planes } from './map';
+import { drawBlock, drawPlate, drawTree, Block, Plate, Tree } from './primitives';
+import { initSound, toggleSound, wind, knock, organNote } from './sound';
+
 function main() {
 	const body = document.body.style
 	body.margin = "0px"
@@ -83,7 +88,7 @@ function main() {
 	resize()
 
 	//const trees = generateTrees(1000, 6)
-	const trees = []
+        const trees: Tree[] = []
 
 /*
 	const blocks = [
@@ -191,3 +196,5 @@ function main() {
 		window.requestAnimationFrame(draw)
 	}
 }
+
+main();

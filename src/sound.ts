@@ -1,9 +1,9 @@
-interface AudioState {
+export interface AudioState {
 	context: AudioContext;
 	totalGain: GainNode;
 }
 
-function initSound(): AudioState {
+export function initSound(): AudioState {
 	let context = new AudioContext();
 	var totalGain = context.createGain();
 	totalGain.connect(context.destination);
@@ -11,13 +11,13 @@ function initSound(): AudioState {
 	return { context, totalGain }
 }
 
-function toggleSound(audio: AudioState) {
+export function toggleSound(audio: AudioState) {
 	audio.totalGain.gain.value = audio.totalGain.gain.value ? 0 : 1;
 }
 
 // The basic random noise generator was lifted from this helpful post:
 // https://noisehack.com/generate-noise-web-audio-api/
-function wind(audio: AudioState) {
+export function wind(audio: AudioState) {
 	const bufferSize = 4096;
 
 	let gain = audio.context.createGain();
@@ -39,7 +39,7 @@ function wind(audio: AudioState) {
 	node.connect(gain);
 }
 
-function knock(audio: AudioState) {
+export function knock(audio: AudioState) {
 	var gain = audio.context.createGain();
 	gain.connect(audio.totalGain);
 	let now = audio.context.currentTime
@@ -55,7 +55,7 @@ function knock(audio: AudioState) {
 	oscillator.stop(now + 0.1);
 }
 
-function organNote(audio: AudioState) {
+export function organNote(audio: AudioState) {
         var real = new Float32Array([0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.0075, 0.00375]);
         var imag = new Float32Array(real.length);
         var organTable = audio.context.createPeriodicWave(real, imag);

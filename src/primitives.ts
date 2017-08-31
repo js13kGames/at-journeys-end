@@ -1,13 +1,15 @@
-interface Tree {
+import { distance, Config, Point, Size } from './geometry';
+
+export interface Tree {
 	center: Point
 	radius: number
 }
 
-function Tree(center: Point, radius: number) {
+export function Tree(center: Point, radius: number) {
 	return { center: center, radius: radius }
 }
 
-function drawTree(tree: Tree, config: Config) {
+export function drawTree(tree: Tree, config: Config) {
 	const h = distance(tree.center.x - config.playerXY.x, tree.center.y - config.playerXY.y) // hypotenuse
 	if (h > config.worldViewRadius) return
 
@@ -31,7 +33,7 @@ function drawTree(tree: Tree, config: Config) {
 	config.context2d.arcTo(pw.x, pw.y, p1.x, p1.y, config.transform.distance(tree.radius)) // tricky
 }
 
-interface Block {
+export interface Block {
 	center: Point
 	size: Size
 	angle: number
@@ -39,11 +41,11 @@ interface Block {
 	z?: number
 }
 
-function Block(center: Point, size: Size, angle: number, height?: number, z?: number) {
+export function Block(center: Point, size: Size, angle: number, height?: number, z?: number) {
 	return { center: center, size: size, angle: angle, height: height, z: z }
 }
 
-function drawBlock(block: Block, config: Config) {
+export function drawBlock(block: Block, config: Config) {
 	if (distance(block.center.x - config.playerXY.x, block.center.y - config.playerXY.y) > config.worldViewRadius) return
 
 	const h = distance(block.size.w, block.size.h) / 2
@@ -83,7 +85,7 @@ function drawBlock(block: Block, config: Config) {
 		}
 	}
 
-	// start with left side 
+	// start with left side
 	const ps = corners.map(corner=>castRay(corner))
 	for (let i = 0; i < 4; i++) {
 		for (let j = i; j < 4; j++) {
@@ -92,7 +94,7 @@ function drawBlock(block: Block, config: Config) {
 		}
 	}
 
-	let first
+	let first = 0
 	let min = 10
 	ps.forEach((p, i)=>{
 		if (p.a < min) {
@@ -129,17 +131,17 @@ function drawBlock(block: Block, config: Config) {
 	config.context2d.fill()
 }
 
-interface Plate {
+export interface Plate {
 	center: Point
 	size: Size
 	angle: number
 }
 
-function Plate(center: Point, size: Size, angle: number): Plate {
+export function Plate(center: Point, size: Size, angle: number): Plate {
 	return { center: center, size: size, angle: angle }
 }
 
-function drawPlate(plate: Plate, config: Config) {
+export function drawPlate(plate: Plate, config: Config) {
 	const hyp = distance(plate.size.w, plate.size.h) / 2
 	const angle = Math.atan2(plate.size.h, plate.size.w)
 
