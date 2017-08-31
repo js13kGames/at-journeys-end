@@ -36,10 +36,11 @@ interface Block {
 	size: Size
 	angle: number
 	height?: number
+	z?: number
 }
 
-function Block(center: Point, size: Size, angle: number, height?: number) {
-	return { center: center, size: size, angle: angle, height: height }
+function Block(center: Point, size: Size, angle: number, height?: number, z?: number) {
+	return { center: center, size: size, angle: angle, height: height, z: z }
 }
 
 function drawBlock(block: Block, config: Config) {
@@ -72,9 +73,10 @@ function drawBlock(block: Block, config: Config) {
 		return { a: a, cp: cp, rp: rp }
 
 		function shadowLength() {
-			if (block.height < config.lightHeight) {
+			const cameraHeight = 30
+			if (block.height < cameraHeight) {
 				const d = distance(corner.x - config.playerXY.x, corner.y - config.playerXY.y)
-				const sl = d + d * block.height / (config.lightHeight - block.height)
+				const sl = d + d * block.height / (cameraHeight - block.height)
 				return sl
 			}
 			return config.worldViewRadius
@@ -125,32 +127,39 @@ function drawBlock(block: Block, config: Config) {
 	config.context2d.lineTo(cps[0].x, cps[0].y)
 	config.context2d.fillStyle = "black"
 	config.context2d.fill()
-
-/*
-	// draw rays
-	config.context2d.beginPath()
-	config.context2d.moveTo(center.x, center.y)
-	config.context2d.lineTo(ps[0].rp.x, ps[0].rp.y)
-	config.context2d.strokeStyle = "red"
-	config.context2d.stroke()
-
-	config.context2d.beginPath()
-	config.context2d.moveTo(center.x, center.y)
-	config.context2d.lineTo(ps[1].rp.x, ps[1].rp.y)
-	config.context2d.strokeStyle = "green"
-	config.context2d.stroke()
-
-	config.context2d.beginPath()
-	config.context2d.moveTo(center.x, center.y)
-	config.context2d.lineTo(ps[2].rp.x, ps[2].rp.y)
-	config.context2d.strokeStyle = "blue"
-	config.context2d.stroke()
-
-	config.context2d.beginPath()
-	config.context2d.moveTo(center.x, center.y)
-	config.context2d.lineTo(ps[3].rp.x, ps[3].rp.y)
-	config.context2d.strokeStyle = "yellow"
-	config.context2d.stroke()
-*/
 }
 
+interface Plate {
+	center: Point
+	size: Size
+	angle: number
+}
+
+function Plate(center: Point, size: Size, angle: number): Plate {
+	return { center: center, size: size, angle: angle }
+}
+
+function drawPlate(plate: Plate, config: Config) {
+	const hyp = distance(plate.size.w, plate.size.h) / 2
+	const angle = Math.atan2(plate.size.h, plate.size.w)
+
+
+	const a1 = angle + plate.angle
+	const a2 = -angle + plate.angle
+	const a3 = a1 + Math.PI
+	const a4 = a2 + Math.PI
+
+	const p1 = config.transform.point(Point(plate.center.x + Math.cos(a1) * hyp, plate.center.y + Math.sin(a1) * hyp))
+	const p2 = config.transform.point(Point(plate.center.x + Math.cos(a2) * hyp, plate.center.y + Math.sin(a2) * hyp))
+	const p3 = config.transform.point(Point(plate.center.x + Math.cos(a3) * hyp, plate.center.y + Math.sin(a3) * hyp))
+	const p4 = config.transform.point(Point(plate.center.x + Math.cos(a4) * hyp, plate.center.y + Math.sin(a4) * hyp))
+
+	config.context2d.beginPath()
+	config.context2d.moveTo(p1.x, p1.y)
+	config.context2d.lineTo(p2.x, p2.y)
+	config.context2d.lineTo(p3.x, p3.y)
+	config.context2d.lineTo(p4.x, p4.y)
+	config.context2d.lineTo(p1.x, p1.y)
+	config.context2d.fillStyle = "black"
+	config.context2d.fill()
+}
