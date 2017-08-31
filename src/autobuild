@@ -1,2 +1,0 @@
-#!/bin/bash
-tsc --w --outFile game.js --target ES5 --noImplicitReturns --noEmitOnError geometry.ts primitives.ts sound.ts main.ts

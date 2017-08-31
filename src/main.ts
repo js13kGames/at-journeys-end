@@ -18,8 +18,8 @@ function main() {
 		worldViewRadius: 50,
 		time: 0,
 		direction: upAngle,
-		playerXY: Point(100, 100),
-		cameraXY: Point(100, 100),
+		playerXY: Point(0, 0),
+		cameraXY: Point(0, 0),
 		cameraAngle: upAngle,
 		lightHeight: 1,
 		transform: undefined,
@@ -70,7 +70,6 @@ function main() {
 			case 68: turnSpeed = 0; break;	// D right
 			case 87: walkSpeed = 0; break;	// W up
 			case 83: walkSpeed = 0; break;	// S down
-			default: console.log(key)
 		}
 	}
 
@@ -83,17 +82,24 @@ function main() {
 	window.addEventListener("keyup", e => keyUp(e.keyCode))
 	resize()
 
-	const trees = generateTrees(1000, 6)
-	//const trees = []
+	//const trees = generateTrees(1000, 6)
+	const trees = []
 
+/*
 	const blocks = [
 		Block(Point(120, 110), Size(2, 0.4), 0, 1),
-		Block(Point(140, 120), Size(10, 0.4), 0),
-		Block(Point(144.8, 123.3), Size(0.4, 7), 0),
-		Block(Point(142, 127), Size(6, 0.4), 0),
-		Block(Point(136.5, 127), Size(3, 0.4), 0),
-		Block(Point(135.2, 123.3), Size(0.4, 7), 0)
+		Block(Point(140, 120), Size(10, 0.4), 0, 10),
+		Block(Point(144.8, 123.3), Size(0.4, 7), 0, 10),
+		Block(Point(142, 127), Size(6, 0.4), 0, 10),
+		Block(Point(136.5, 127), Size(3, 0.4), 0, 10),
+		Block(Point(135.2, 123.3), Size(0.4, 7), 0, 10)
 	]
+	*/
+
+	const blocks = cubes.map(data=>Block(Point(data[0], -data[1]), Size(data[3], data[4]), data[6], data[5], data[2]))
+
+	const degToRad = Math.PI / 180
+	const plates = planes.map(data=>Plate(Point(data[0], -data[1]), Size(data[2] * 10, data[3] * 10), data[4] * degToRad))
 
 	// divide the map into zones and put one tree in each zone
 	function generateTrees(mapSize: number, zoneSize: number): Tree[] {
@@ -122,13 +128,12 @@ function main() {
 		config.direction += turnSpeed
 
 		// update camera
-		const factor = 0.2
-		config.cameraXY.x += (config.playerXY.x - config.cameraXY.x) * factor
-		config.cameraXY.y += (config.playerXY.y - config.cameraXY.y) * factor
-		config.cameraAngle += (config.direction - config.cameraAngle) * factor
+		config.cameraXY.x += (config.playerXY.x - config.cameraXY.x) * 0.02
+		config.cameraXY.y += (config.playerXY.y - config.cameraXY.y) * 0.02
+		config.cameraAngle += (config.direction - config.cameraAngle) * 0.02
 
 		// clear the canvas
-		config.context2d.fillStyle = "rgba(0,0,0,1)"
+		config.context2d.fillStyle = "rgba(128,128,128,1)"
 		config.context2d.fillRect(0, 0, config.canvasSize.w, config.canvasSize.h)
 
 		config.transform = getTransform(config)
@@ -138,6 +143,7 @@ function main() {
 		const lightXY = config.transform.point(config.playerXY)
 		const g = config.context2d.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, lr)
 
+/*
 		const baseIntensity = 1, flickerAmount = 0.1
 		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(config.time) +
 			Math.sin(2.2 * config.time + 5.52) + Math.sin(2.9 * config.time + 0.93) +
@@ -153,10 +159,12 @@ function main() {
 
 		config.context2d.fillStyle = g
 		config.context2d.fillRect(lightXY.x - lr, lightXY.y - lr, lr * 2, lr * 2)
+*/
 
-		// draw the center
-		config.context2d.strokeStyle = "blue"
-		config.context2d.strokeRect(lightXY.x - 5, lightXY.y - 5, 10, 10)
+		// draw all plates
+		plates.forEach(plate=>{
+			drawPlate(plate, config)
+		})
 
 		// draw all trees
 		config.context2d.beginPath()
@@ -167,16 +175,13 @@ function main() {
 		config.context2d.fill()
 
 		// draw all blocks
-		//config.context2d.beginPath()
-		config.context2d.shadowColor = "black"
-		config.context2d.shadowBlur = 5
-
-		blocks[0].angle += 0.01
 		blocks.forEach(block=>{
 			drawBlock(block, config)
 		})
-		//config.context2d.fillStyle = "black"
-		//config.context2d.fill()
+
+		// draw the center
+		config.context2d.strokeStyle = "blue"
+		config.context2d.strokeRect(lightXY.x - 5, lightXY.y - 5, 10, 10)
 
 		const frameRate = Math.round(1000 / config.frameMS)
 		config.context2d.fillStyle = "yellow"
