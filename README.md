@@ -6,12 +6,7 @@ Let's Play!
 Requirements
 ---
 
-NodeJS (and npm!)
-
-Optional
----
-
-[Yarn package manager](https://yarnpkg.com/en/)
+NodeJS 6.x+
 
 Install dependencies:
 ---
@@ -19,20 +14,14 @@ With npm:
 
         $ npm install
 
-If you have yarn:
-
-        $ yarn
-
 Development
 ---
 
-1. Run the webpack-dev-server so the app is served up
-   by a web server.
+1. Run the compiler in watch mode
 
         $ npm start
 
-2. Now you can open the app and see live changes:
-   http://localhost:8080/
+2. Now you can open the app at dist/index.html.
 
 Production
 ---

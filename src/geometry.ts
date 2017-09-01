@@ -7,12 +7,12 @@
 //	- is rotated by CA in radians,
 //	- views an area of diameter CD.
 
-interface Point {
+export interface Point {
 	x: number
 	y: number
 }
 
-interface Size {
+export interface Size {
 	w: number
 	h: number
 }
@@ -23,7 +23,7 @@ interface Transform {
 	distance: (d: number) => number
 }
 
-interface Config {
+export interface Config {
 	context2d: CanvasRenderingContext2D
 	canvasSize: Size
 	canvasCenter: Point
@@ -39,19 +39,19 @@ interface Config {
 	frameMS: number
 }
 
-function Point(x: number, y: number) {
+export function Point(x: number, y: number) {
 	return { x: x, y: y }
 }
 
-function Size(w: number, h: number) {
+export function Size(w: number, h: number) {
 	return { w: w, h: h }
 }
 
-function distance(x, y): number {
+export function distance(x: number, y: number): number {
 	return Math.sqrt(x * x + y * y)
 }
 
-function getTransform(config: Config): Transform {
+export function getTransform(config: Config): Transform {
 
 	// precalculate canvas center, canvas radius, and scale
 	const cx = config.canvasSize.w / 2
@@ -70,4 +70,3 @@ function getTransform(config: Config): Transform {
 		distance: (d: number) => d * scale
 	}
 }
-
