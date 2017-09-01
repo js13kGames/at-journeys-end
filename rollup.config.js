@@ -1,8 +1,8 @@
 import typescript from 'rollup-plugin-typescript2';
-import closure from 'rollup-plugin-closure-compiler-js';
+import uglify from 'rollup-plugin-uglify';
 
+// `npm start` -> `production` is false
 // `npm run build` -> `production` is true
-// `npm run dev` -> `production` is false
 const production = !process.env.ROLLUP_WATCH;
 
 export default {
@@ -13,7 +13,7 @@ export default {
     },
     plugins: [
 	typescript(),
-        production && closure()
+        production && uglify()
     ],
     sourcemap: !production
 };
