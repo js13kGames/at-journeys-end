@@ -41,8 +41,8 @@ export function wind(audio: AudioState) {
 		let last = filterFreqWave[9] || Math.random() * 800 + 200;
 		filterFreqWave = filterFreqWave.map(_ => Math.random() * 800 + 200);
 		filterFreqWave[0] = last;
-		filter.frequency.setValueCurveAtTime(filterFreqWave, audio.context.currentTime + 1, 30);
-		setTimeout(modulateWind, 30000);
+		filter.frequency.setValueCurveAtTime(filterFreqWave, audio.context.currentTime, 30);
+		setTimeout(modulateWind, 31000);
 	};
 	modulateWind();
 
