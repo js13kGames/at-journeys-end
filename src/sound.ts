@@ -32,6 +32,19 @@ export function wind(audio: AudioState) {
 	let gain = audio.context.createGain();
 	gain.connect(audio.totalGain);
 	gain.gain.setValueAtTime(0.08, audio.context.currentTime);
+	var filter = audio.context.createBiquadFilter();
+	filter.connect(gain);
+	filter.type = 'lowpass';
+
+	let filterFreqWave = new Float32Array(10);
+	function modulateWind() {
+		let last = filterFreqWave[9];
+		filterFreqWave = filterFreqWave.map(_ => Math.random() * 900 + 100);
+		filterFreqWave[0] = last;
+		filter.frequency.setValueCurveAtTime(filterFreqWave, audio.context.currentTime, 30);
+		setTimeout(modulateWind, 30000);
+	};
+	modulateWind();
 
 	let lastOut = 0.0;
 	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
@@ -45,7 +58,7 @@ export function wind(audio: AudioState) {
 		}
 	}
 
-	node.connect(gain);
+	node.connect(filter);
 }
 
 // TODO: Refactor so we don't care about start / end (see playOrgan).
