@@ -1,7 +1,7 @@
 import { getTransform, Config, Point, Size } from './geometry';
 import { cubes, planes } from './map';
 import { drawBlock, drawPlate, drawTree, Block, Plate, Tree } from './primitives';
-import { initSound, toggleSound, wind, organNote } from './sound';
+import { initSound, toggleSound, wind, playOrgan } from './sound';
 
 function main() {
 	const body = document.body.style
@@ -61,7 +61,7 @@ function main() {
 			case 73: config.worldViewRadius--; break;	// I zoom in
 			case 75: config.worldViewRadius++; break;	// K zoom out
 			case 81: toggleSound(audioState); break;	// T toggle sound
-			case 79: organNote(audioState); break;		// O organ
+			case 79: playOrgan(audioState); break;		// O organ
 			case 89: config.lightHeight += 0.1; break;	// Y light higher
 			case 72: config.lightHeight -= 0.1; break;	// H light lower
 			default: console.log(key)

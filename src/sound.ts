@@ -100,28 +100,3 @@ export function playOrgan(audio: AudioState) {
 	             ["D3", 2.4, 3.6], ["F3", 2.4, 3.6], ["A3", 2.4, 3.6]];
 	playScore(audio, score);
 }
-
-export function organNote(audio: AudioState) {
-        var real = new Float32Array([0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.0075, 0.00375]);
-        var imag = new Float32Array(real.length);
-        var organTable = audio.context.createPeriodicWave(real, imag);
-
-        var osc_d = audio.context.createOscillator();
-        osc_d.setPeriodicWave(organTable);
-        osc_d.frequency.value = 146.83;
-        osc_d.connect(audio.totalGain);
-
-        var osc_f = audio.context.createOscillator();
-        osc_f.setPeriodicWave(organTable);
-        osc_f.frequency.value = 174.61;
-        osc_f.connect(audio.totalGain);
-
-        var osc_a = audio.context.createOscillator();
-        osc_a.setPeriodicWave(organTable);
-        osc_a.frequency.value = 220.0;
-        osc_a.connect(audio.totalGain);
-
-        osc_d.start(0);
-        osc_f.start(0);
-        osc_a.start(0);
-}
