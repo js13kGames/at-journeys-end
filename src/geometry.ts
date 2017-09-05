@@ -1,72 +1,122 @@
-//	The projection is Orthographic; all rays are perpendicular to the view plane.
-//	World Coordinates (W) are meters in page coordinates (to match canvas):
-//	- top left is (0,0) and bottom right is (MaxX, MaxY),
-//	- angles are measured clockwise: 0=>right, PI/2=>down, PI=>left, 3PI/2=>up.
-// The canvas is a camera of size (CW, CH) in pixels that:
-//	- always looks straight down at a point in W (CX, CY),
-//	- is rotated by CA in radians,
-//	- views an area of diameter CD.
-
-export interface Point {
+export interface XY {
 	x: number
 	y: number
 }
 
-export interface Size {
-	w: number
-	h: number
+export interface XYZ {
+	x: number
+	y: number
+	z: number
+}
+
+export interface LWH {
+	l: number	// in x direction
+	w: number	// in y direction
+	h: number	// in z direction
+}
+
+export interface LW {
+	l: number	// in x direction
+	w: number	// in y direction
+}
+
+// for polar coordinates
+export interface RA {
+	r: number	// radius
+	a: number	// angle
 }
 
 // map world coordinates onto canvas
 interface Transform {
-	point: (wp: Point) => Point
-	distance: (d: number) => number
+	xyz: (wp: XYZ) => XY
+	xyzs: (wps: XYZ[]) => XY[]
 }
 
 export interface Config {
-	context2d: CanvasRenderingContext2D
-	canvasSize: Size
-	canvasCenter: Point
+	lib: CanvasRenderingContext2D
+	canvasLW: LW
+	canvasCenter: XY
 	worldViewRadius: number
 	time: number
-	direction: number
-	playerXY: Point
-	cameraXY: Point
+	playerXY: XY
+	playerAngle: number
+	cameraXYZ: XYZ
 	cameraAngle: number
-	lightHeight: number
 	transform: Transform
 	now: number
 	frameMS: number
 }
 
-export function Point(x: number, y: number) {
+export function XY(x: number, y: number) {
 	return { x: x, y: y }
 }
 
-export function Size(w: number, h: number) {
-	return { w: w, h: h }
+export function RA(r: number, a: number) {
+	return { r: r, a: a }
 }
 
-export function distance(x: number, y: number): number {
-	return Math.sqrt(x * x + y * y)
+export function XYZ(x: number, y: number, z=0) {
+	return { x: x, y: y, z: z }
 }
 
-export function getTransform(config: Config): Transform {
+export function LWH(l: number, w: number, h: number) {
+	return { l: l, w: w, h: h }
+}
+
+export function LW(l: number, w: number) {
+	return { l: l, w: w }
+}
+
+export function distance(x: number, y: number, z=0): number {
+	return Math.sqrt(x * x + y * y + z * z)
+}
+
+export function XYDistance(xy: XY): number {
+	return Math.sqrt(xy.x * xy.x + xy.y * xy.y)
+}
+
+export function LWToRA(lw: LW): RA {
+	return RA(distance(lw.l, lw.w), Math.atan2(lw.w, lw.l))
+}
+
+export function RAToXYZ(ra: RA): XYZ {
+	return XYZ(ra.r * Math.cos(ra.a), ra.r * Math.sin(ra.a), 0)
+}
+
+export function XYZPlusXYZ(a: XYZ, b: XYZ): XYZ {
+	return XYZ(a.x + b.x, a.y + b.y, a.z + b.z)
+}
+
+export function XYMinusXY(a: XY, b: XY): XY {
+	return XY(a.x - b.x, a.y - b.y)
+}
+
+export function getTransform(c: Config): Transform {
 
 	// precalculate canvas center, canvas radius, and scale
-	const cx = config.canvasSize.w / 2
-	const cy = config.canvasSize.h / 2
+	const cx = c.canvasLW.l / 2
+	const cy = c.canvasLW.w / 2
 	const cr = distance(cx, cy)
-	const scale = cr / config.worldViewRadius
+	const cScale = cr / c.worldViewRadius
+
+	// project a 3d point in WC onto the ground, then rotate and map to canvas
+	function xyz(p: XYZ): XY {
+
+		// project p from the camera onto the ground
+		const scale = c.cameraXYZ.z / (c.cameraXYZ.z - p.z)
+		const wx = c.cameraXYZ.x + (p.x - c.cameraXYZ.x) * scale
+		const wy = c.cameraXYZ.y + (p.y - c.cameraXYZ.y) * scale
+
+		// rotate in WC and map to canvas
+		const dx = wx - c.cameraXYZ.x
+		const dy = wy - c.cameraXYZ.y
+		const a = Math.atan2(dy, dx) - c.cameraAngle + 3 * Math.PI / 2
+		const d = distance(dx, dy) * cScale
+		return XY(cx + d * Math.cos(a), cy + d * Math.sin(a))
+	}
 
 	return {
-		point: (p: Point) => {
-			const dx = p.x - config.cameraXY.x
-			const dy = p.y - config.cameraXY.y
-			const a = Math.atan2(dy, dx) - config.cameraAngle + 3 * Math.PI / 2
-			const d = distance(dx, dy) * scale
-			return Point(cx + d * Math.cos(a), cy + d * Math.sin(a))
-		},
-		distance: (d: number) => d * scale
+		xyz: xyz,
+		xyzs: (a: XYZ[])=>a.map(xyz)
 	}
 }

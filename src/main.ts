@@ -1,6 +1,6 @@
-import { getTransform, Config, Point, Size } from './geometry';
-import { cubes, planes } from './map';
-import { drawBlock, drawPlate, drawTree, Block, Plate, Tree } from './primitives';
+import { getTransform, Config, XYZ, XY, LWH, LW } from './geometry'
+import { cubes, planes, cylinders } from './map'
+import { Can, Box, Rug, Rain, drawRain } from './primitives'
 import { initSound, toggleSound, wind, playOrgan } from './sound';
 
 function main() {
@@ -11,42 +11,38 @@ function main() {
 	const canvas = <HTMLCanvasElement>document.createElement("canvas")
 	document.body.appendChild(canvas)
 
-	let audioState = initSound()
+	const audioState = initSound()
 	wind(audioState)
 
-	const upAngle = 3 * Math.PI / 2
+	const upAngle = 1.5 * Math.PI
 
 	const config: Config = {
-		context2d: canvas.getContext('2d'),
-		canvasSize: undefined,
+		lib: canvas.getContext('2d'),
+		canvasLW: undefined,
 		canvasCenter: undefined,
 		worldViewRadius: 50,
 		time: 0,
-		direction: upAngle,
-		playerXY: Point(0, 0),
-		cameraXY: Point(0, 0),
+		playerXY: XY(0, 0),
+		playerAngle: upAngle,
+		cameraXYZ: XYZ(0, 0, 30),
 		cameraAngle: upAngle,
-		lightHeight: 1,
 		transform: undefined,
 		now: new Date().getTime(),
 		frameMS: 0
 	}
 
 	function resize() {
-		setTimeout(() => {
-			const w = window.innerWidth
-			const h = window.innerHeight
+		const w = window.innerWidth
+		const h = window.innerHeight
 
-			// update canvas size and drawing area
-			canvas.style.width = w + "px"
-			canvas.style.height = h + "px"
-			canvas.width = w
-			canvas.height = h
+		// update canvas size and drawing area
+		canvas.style.width = w + "px"
+		canvas.style.height = h + "px"
+		canvas.width = w
+		canvas.height = h
 
-			config.canvasSize = Size(w, h)
-			config.canvasCenter = Point(Math.round(w / 2), Math.round(h / 2))
-			draw()
-		}, 10)
+		config.canvasLW = LW(w, h)
+		config.canvasCenter = XY(Math.round(w / 2), Math.round(h / 2))
 	}
 
 	let walkSpeed = 0
@@ -56,15 +52,15 @@ function main() {
 		switch (key) {
 			case 65: turnSpeed = -0.025; break;			// A left
 			case 68: turnSpeed = 0.025; break;			// D right
-			case 87: walkSpeed = 0.05; break;			// W up
-			case 83: walkSpeed = -0.05; break;			// S down
+			case 87: walkSpeed = 0.25; break;			// W up
+			case 83: walkSpeed = -0.25; break;			// S down
 			case 73: config.worldViewRadius--; break;	// I zoom in
 			case 75: config.worldViewRadius++; break;	// K zoom out
 			case 81: toggleSound(audioState); break;	// T toggle sound
 			case 79: playOrgan(audioState); break;		// O organ
-			case 89: config.lightHeight += 0.1; break;	// Y light higher
-			case 72: config.lightHeight -= 0.1; break;	// H light lower
-			default: console.log(key)
+			case 89: config.cameraXYZ.z++; break;		// Y camera up
+			case 72: config.cameraXYZ.z--; break;		// H camera down
+			//default: console.log(key)
 		}
 	}
 
@@ -77,47 +73,22 @@ function main() {
 		}
 	}
 
-	function move(from: Point, direction: number, distance: number): Point {
-		return Point(from.x + Math.cos(direction) * distance, from.y + Math.sin(direction) * distance)
+	function move(from: XY, angle: number, distance: number): XY {
+		return XY(from.x + Math.cos(angle) * distance, from.y + Math.sin(angle) * distance)
 	}
 
 	window.addEventListener("resize", resize)
 	window.addEventListener("keydown", e => keyDown(e.keyCode))
 	window.addEventListener("keyup", e => keyUp(e.keyCode))
-	resize()
 
-	//const trees = generateTrees(1000, 6)
-        const trees: Tree[] = []
-
-/*
-	const blocks = [
-		Block(Point(120, 110), Size(2, 0.4), 0, 1),
-		Block(Point(140, 120), Size(10, 0.4), 0, 10),
-		Block(Point(144.8, 123.3), Size(0.4, 7), 0, 10),
-		Block(Point(142, 127), Size(6, 0.4), 0, 10),
-		Block(Point(136.5, 127), Size(3, 0.4), 0, 10),
-		Block(Point(135.2, 123.3), Size(0.4, 7), 0, 10)
+	const primitives = [
+		...planes.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4])),
+		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4])),
+		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6]))
 	]
-	*/
 
-	const blocks = cubes.map(data=>Block(Point(data[0], -data[1]), Size(data[3], data[4]), data[6], data[5], data[2]))
-
-	const degToRad = Math.PI / 180
-	const plates = planes.map(data=>Plate(Point(data[0], -data[1]), Size(data[2] * 10, data[3] * 10), data[4] * degToRad))
-
-	// divide the map into zones and put one tree in each zone
-	function generateTrees(mapSize: number, zoneSize: number): Tree[] {
-		const trees = [] as Tree[]
-		for (let zx = 0; zx * zoneSize < mapSize; zx++) {
-			for (let zy = 0; zy * zoneSize < mapSize; zy++) {
-				const r = Math.random() / 2 + 0.3
-				const tx = zx * zoneSize + Math.random() * (zoneSize - r * 2) + r
-				const ty = zy * zoneSize + Math.random() * (zoneSize - r * 2) + r
-				trees.push(Tree(Point(tx, ty), r))
-			}
-		}
-		return trees
-	}
+	const rains: XYZ[] = []
+	for (let i = 0; i < 100; i++) rains.push(Rain(config))
 
 	function draw() {
 
@@ -128,26 +99,25 @@ function main() {
 		config.time += 0.1
 
 		// update player
-		config.playerXY = move(config.playerXY, config.direction, walkSpeed)
-		config.direction += turnSpeed
+		config.playerXY = move(config.playerXY, config.playerAngle, walkSpeed)
+		config.playerAngle += turnSpeed
 
 		// update camera
-		config.cameraXY.x += (config.playerXY.x - config.cameraXY.x) * 0.02
-		config.cameraXY.y += (config.playerXY.y - config.cameraXY.y) * 0.02
-		config.cameraAngle += (config.direction - config.cameraAngle) * 0.02
+		config.cameraXYZ.x += (config.playerXY.x - config.cameraXYZ.x) * 0.02
+		config.cameraXYZ.y += (config.playerXY.y - config.cameraXYZ.y) * 0.02
+		config.cameraAngle += (config.playerAngle - config.cameraAngle) * 0.02
 
 		// clear the canvas
-		config.context2d.fillStyle = "rgba(128,128,128,1)"
-		config.context2d.fillRect(0, 0, config.canvasSize.w, config.canvasSize.h)
+		config.lib.fillStyle = "#222"
+		config.lib.fillRect(0, 0, config.canvasLW.l, config.canvasLW.w)
 
 		config.transform = getTransform(config)
 
 		// draw the light
 		const lr = 800
-		const lightXY = config.transform.point(config.playerXY)
-		const g = config.context2d.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, lr)
+		const lightXY = config.transform.xyz(XYZ(config.playerXY.x, config.playerXY.y, 0))
+		const g = config.lib.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, lr)
 
-/*
 		const baseIntensity = 1, flickerAmount = 0.1
 		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(config.time) +
 			Math.sin(2.2 * config.time + 5.52) + Math.sin(2.9 * config.time + 0.93) +
@@ -161,39 +131,33 @@ function main() {
 			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
 		}
 
-		config.context2d.fillStyle = g
-		config.context2d.fillRect(lightXY.x - lr, lightXY.y - lr, lr * 2, lr * 2)
-*/
+		config.lib.fillStyle = g
+		config.lib.fillRect(lightXY.x - lr, lightXY.y - lr, lr * 2, lr * 2)
 
-		// draw all plates
-		plates.forEach(plate=>{
-			drawPlate(plate, config)
-		})
+		config.lib.fillStyle = "black"
+		primitives.forEach(p=>p.draw(config))
 
-		// draw all trees
-		config.context2d.beginPath()
-		trees.forEach(tree=>{
-			drawTree(tree, config)
-		})
-		config.context2d.fillStyle = "black"
-		config.context2d.fill()
-
-		// draw all blocks
-		blocks.forEach(block=>{
-			drawBlock(block, config)
-		})
+		// rain
+		rains.forEach(rain=>drawRain(rain, config))
 
 		// draw the center
-		config.context2d.strokeStyle = "blue"
-		config.context2d.strokeRect(lightXY.x - 5, lightXY.y - 5, 10, 10)
+		config.lib.strokeStyle = "blue"
+		config.lib.strokeRect(lightXY.x - 5, lightXY.y - 5, 10, 10)
 
+		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / config.frameMS)
-		config.context2d.fillStyle = "yellow"
-		config.context2d.font = "12px Arial"
-		config.context2d.fillText(frameRate + " fps", 5, 15)
+		config.lib.fillStyle = "yellow"
+		config.lib.font = "12px Arial"
+		config.lib.fillText(frameRate + " fps", 5, 15)
 
 		window.requestAnimationFrame(draw)
 	}
+
+	// start it up
+	setTimeout(()=>{
+		resize()
+		draw()
+	}, 10)
 }
 
-main();
+main()
