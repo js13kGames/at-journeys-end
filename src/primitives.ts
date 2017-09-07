@@ -1,19 +1,21 @@
-import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, RAToXYZ, XYZPlusXYZ, XYMinusXY, XYDistance } from './geometry';
+import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
 
 export interface Primitive {
+	contains(wp: XY, pad: number): void
 	draw(c: Config): void
 }
 
 // cuboid
 export function Box(xyz: XYZ, lwh: LWH, a: number): Primitive {
+	const bottomCorners = corners(xyz, lwh, a)
+	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
 	return {
+		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lwh, a, wp, pad),
 		draw: (c: Config)=>{
 			if (XYDistance(XYMinusXY(xyz, c.cameraXYZ)) > c.worldViewRadius) return
 
-			const topZ = Math.min(xyz.z + lwh.h, c.cameraXYZ.z * .99)
-			const bps = corners(xyz, lwh, a)				// bottom corners
-			const tps = bps.map(bp=>XYZ(bp.x, bp.y, topZ))	// top corners
-			const xys = c.transform.xyzs([...bps, ...tps])
+			// transform all 8 corners
+			const xys = c.transform.xyzs([...bottomCorners, ...topCorners])
 
 			// draw the four vertical sides
 			for (let i = 0; i < 4; i++) {
@@ -36,6 +38,13 @@ export function Box(xyz: XYZ, lwh: LWH, a: number): Primitive {
 // cylinder
 export function Can(xyz: XYZ, r: number, h: number): Primitive {
 	return {
+		contains: (wp: XY, pad: number)=>{
+			const min = r + pad + 0.25
+			const rSquared = min * min
+			const dp = XYMinusXY(wp, xyz)
+			const dSquared = dp.x * dp.x + dp.y * dp.y
+			return dSquared < rSquared
+		},
 		draw: (c: Config)=>{
 			
 			// find distance
@@ -53,7 +62,7 @@ export function Can(xyz: XYZ, r: number, h: number): Primitive {
 			const bxys = c.transform.xyzs([bp1, bp2, xyz, XYZ(c.cameraXYZ.x, c.cameraXYZ.y, 0)])
 
 			// find left and right point of tangency at top of cylinder
-			const topZ = Math.min(xyz.z + h, c.cameraXYZ.z * .99)
+			const topZ = xyz.z + h
 			const tp1 = XYZ(bp1.x, bp1.y, topZ)
 			const tp2 = XYZ(bp2.x, bp2.y, topZ)
 			const txys = c.transform.xyzs([tp1, tp2, XYZ(xyz.x, xyz.y, topZ)])
@@ -74,6 +83,7 @@ export function Can(xyz: XYZ, r: number, h: number): Primitive {
 // rectangle on the ground, z is ignored
 export function Rug(xyz: XYZ, lw: LW, a: number): Primitive {
 	return {
+		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lw, a, wp, pad),
 		draw: (c: Config)=>{
 			if (XYDistance(XYMinusXY(xyz, c.playerXY)) > c.worldViewRadius + Math.max(lw.l, lw.w)) return
 			const wps = corners(xyz, lw, a)
@@ -86,23 +96,30 @@ export function Rug(xyz: XYZ, lw: LW, a: number): Primitive {
 	}
 }
 
-export function corners(xyz: XYZ, lw: LW, a: number): XYZ[] {
+function corners(xyz: XYZ, lw: LW, a: number): XYZ[] {
 	const ra = LWToRA(lw)
 	const ras = [RA(ra.r, ra.a+a), RA(ra.r, Math.PI-ra.a+a), RA(ra.r, Math.PI+ra.a+a), RA(ra.r, -ra.a+a)]
 	const result = ras.map(ra=>XYZPlusXYZ(xyz, RAToXYZ(ra)))
 	return result
 }
 
-export function moveTo(xy: XY, c: Config) {
+function moveTo(xy: XY, c: Config) {
 	c.lib.moveTo(xy.x, xy.y)
 }
 
-export function lineTo(xy: XY, c: Config) {
+function lineTo(xy: XY, c: Config) {
 	c.lib.lineTo(xy.x, xy.y)
 }
 
-export function linesTo(xys: XY[], c: Config) {
+function linesTo(xys: XY[], c: Config) {
 	xys.forEach(xy=>lineTo(xy, c))
+}
+
+// rotate back to zero and check using simple bounds
+function rectangleContains(xyz: XYZ, lw: LW, a: number, wp: XY, pad: number) {
+	const dp = XYMinusXY(wp, xyz)
+	const p = XYPlusXY(RAToXYZ(RA(XYDistance(dp), Math.atan2(dp.y, dp.x) - a)), xyz)
+	return p.x >= xyz.x-lw.l-pad && p.x <= xyz.x+lw.l+pad && p.y >= xyz.y-lw.w-pad && p.y <= xyz.y+lw.w+pad
 }
 
 export function Rain(c: Config): XYZ {

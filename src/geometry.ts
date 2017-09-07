@@ -91,6 +91,10 @@ export function XYMinusXY(a: XY, b: XY): XY {
 	return XY(a.x - b.x, a.y - b.y)
 }
 
+export function XYPlusXY(a: XY, b: XY): XY {
+	return XY(a.x + b.x, a.y + b.y)
+}
+
 export function getTransform(c: Config): Transform {
 
 	// precalculate canvas center, canvas radius, and scale
@@ -98,12 +102,13 @@ export function getTransform(c: Config): Transform {
 	const cy = c.canvasLW.w / 2
 	const cr = distance(cx, cy)
 	const cScale = cr / c.worldViewRadius
+	const maxZ = c.cameraXYZ.z * .99
 
 	// project a 3d point in WC onto the ground, then rotate and map to canvas
 	function xyz(p: XYZ): XY {
 
 		// project p from the camera onto the ground
-		const scale = c.cameraXYZ.z / (c.cameraXYZ.z - p.z)
+		const scale = c.cameraXYZ.z / (c.cameraXYZ.z - Math.min(p.z, maxZ))
 		const wx = c.cameraXYZ.x + (p.x - c.cameraXYZ.x) * scale
 		const wy = c.cameraXYZ.y + (p.y - c.cameraXYZ.y) * scale
 
