@@ -1,6 +1,6 @@
 import { getTransform, Config, XYZ, XY, LWH, LW } from './geometry'
-import { cubes, planes, cylinders } from './map'
-import { Box, Can, Rug, Rain, drawRain } from './primitives'
+import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
+import { Primitive, Box, Can, Rug, TreeFence, Rain, drawRain } from './primitives'
 import { initSound, toggleSound, wind, knock, organNote } from './sound'
 import { initMovement, moveWithDeflection } from './movement'
 
@@ -55,8 +55,8 @@ function main() {
 		switch (key) {
 			case 65: turnSpeed = -0.025; break;			// A left
 			case 68: turnSpeed = 0.025; break;			// D right
-			case 87: walkSpeed = 0.04; break;			// W up
-			case 83: walkSpeed = -0.04; break;			// S down
+			case 87: walkSpeed = 0.05; break;			// W up
+			case 83: walkSpeed = -0.05; break;			// S down
 			case 73: config.worldViewRadius--; break;	// I zoom in
 			case 75: config.worldViewRadius++; break;	// K zoom out
 			case 78: knock(audioState); break;     		// N 'knock'
@@ -86,12 +86,35 @@ function main() {
 	window.addEventListener("keydown", e => keyDown(e.keyCode))
 	window.addEventListener("keyup", e => keyUp(e.keyCode))
 
-	const primitives = [
-		Can(XYZ(0, -5, 0), 0.5, 1),
-		...planes.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4])),
-		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4])),
-		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6]))
+	const planeColors = [
+		"yellow",	// not supported
+		"black",
+		"#080808",
+		"red"
 	]
+
+	const primitives: Primitive[] = [
+		//TreeFence(XY(-10, -10), XY(10, -10))
+		...planes.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4], planeColors[a[5]], a[6]>1, a[6]!=2)),
+		...noTreeZones.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, false, true)),
+		...fuelCans.map(a=>Box(XYZ(a[0], -a[1], 0), LWH(0.3, 0.18, 0.3), 0, "red")),
+		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
+		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
+		...fences.filter(a=>a[0] == 2).map(a=>TreeFence(XY(a[1], -a[2]), XY(a[3], -a[4])))
+	]
+	
+	// generate trees by dividing the map into zones and putting one tree in each zone
+	const trees = []
+	const zoneSize = 6
+	const rand = (n: number, r: number)=>n + Math.random() * (zoneSize - r * 2) + r
+	for (let x = -170; x < 140; x += zoneSize) {
+		for (let y = -340; y < 0; y += zoneSize) {
+			const r = Math.random() / 2 + 0.3
+			const xyz = XYZ(rand(x, r), rand(y, r), 0)
+			if (!primitives.some(p=>p.isTreeless && p.contains(xyz, r))) trees.push(Can(xyz, r, 30, null))
+		}
+	}
+	primitives.push(...trees)
 
 	const rains: XYZ[] = []
 	for (let i = 0; i < 100; i++) rains.push(Rain(config))
@@ -119,7 +142,7 @@ function main() {
 		config.cameraAngle = config.playerAngle
 
 		// clear the canvas
-		config.lib.fillStyle = "#444"
+		config.lib.fillStyle = "#040404"
 		config.lib.fillRect(0, 0, config.canvasLW.l, config.canvasLW.w)
 
 		config.transform = getTransform(config)
