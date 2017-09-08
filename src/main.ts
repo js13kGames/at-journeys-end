@@ -1,7 +1,7 @@
 import { getTransform, Config, XYZ, XY, LWH, LW } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
 import { Primitive, Box, Can, Rug, TreeFence, Rain, drawRain } from './primitives'
-import { initSound, toggleSound, wind, knock, organNote } from './sound'
+import { initSound, toggleSound, wind, playOrgan } from './sound';
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -59,9 +59,8 @@ function main() {
 			case 83: walkSpeed = -0.05; break;			// S down
 			case 73: config.worldViewRadius--; break;	// I zoom in
 			case 75: config.worldViewRadius++; break;	// K zoom out
-			case 78: knock(audioState); break;     		// N 'knock'
 			case 81: toggleSound(audioState); break;	// T toggle sound
-			case 79: organNote(audioState); break;		// O organ
+			case 79: playOrgan(audioState); break;		// O organ
 			case 89: config.cameraXYZ.z++; break;		// Y camera up
 			case 72: config.cameraXYZ.z--; break;		// H camera down
 			//default: console.log(key)
@@ -102,7 +101,7 @@ function main() {
 		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
 		...fences.filter(a=>a[0] == 2).map(a=>TreeFence(XY(a[1], -a[2]), XY(a[3], -a[4])))
 	]
-	
+
 	// generate trees by dividing the map into zones and putting one tree in each zone
 	const trees = []
 	const zoneSize = 6
