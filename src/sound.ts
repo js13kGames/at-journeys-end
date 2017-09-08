@@ -62,7 +62,6 @@ export function wind(audio: AudioState) {
 	node.connect(filter);
 }
 
-// TODO: Refactor so we don't care about start / end (see playOrgan).
 function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	let [frequency, start, end] = spec;
 
