@@ -1,13 +1,9 @@
 const GAME_VOLUME = 0.8;
 
-const openOrganR = new Float32Array([0, 1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.00390625]);
-//const openOrganR = new Float32Array([0, 1.0, 0.95, 0.9025, 0.857375, 0.8145]);
+const openOrganR = new Float32Array([0, 1.0, 0.95, 0.9025, 0.857375, 0.8145]);
 const openOrganI = new Float32Array(openOrganR.length);
-const closedOrganR = new Float32Array([0, 1.0, 0.0, 0.6, 0.0, 0.4, 0.0, 0.25, 0.0, 0.16]);
-const closedOrganI = new Float32Array(closedOrganR.length);
 let openOrganTable = (context: AudioContext) => context.createPeriodicWave(openOrganR, openOrganI);
-let closedOrganTable = (context: AudioContext) => context.createPeriodicWave(closedOrganR, closedOrganI);
-let organTable = closedOrganTable;
+let organTable = openOrganTable;
 
 export interface AudioState {
 	context: AudioContext;
@@ -44,7 +40,7 @@ export function wind(audio: AudioState) {
 	let filterFreqWave = new Float32Array(10);
 	function modulateWind() {
 		let last = filterFreqWave[9];
-		filterFreqWave = filterFreqWave.map(_ => Math.random() * 800 + 200);
+		filterFreqWave = filterFreqWave.map(_ => Math.random() * 1200 + 400);
 		filterFreqWave[0] = last || filterFreqWave[0];
 		filter.frequency.setValueCurveAtTime(filterFreqWave, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);
@@ -87,7 +83,7 @@ function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	let absEnd: number = audio.context.currentTime + end;
 	gain.gain.setValueAtTime(0, absStart)
 	gain.gain.linearRampToValueAtTime(1, absStart + 0.01);
-	gain.gain.linearRampToValueAtTime(0.001, absEnd + 0.02);
+	gain.gain.linearRampToValueAtTime(0.001, absEnd + 0.25);
 	o.start(absStart);
 	o.stop(absEnd);
 }
