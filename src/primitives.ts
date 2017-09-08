@@ -1,21 +1,29 @@
-import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, RAToXYZ, XYZPlusXYZ, XYMinusXY, XYDistance } from './geometry';
+import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
 
 export interface Primitive {
+	isTreeless: boolean
+	isBarrier: boolean
+	contains(wp: XY, pad: number): boolean
 	draw(c: Config): void
 }
 
 // cuboid
-export function Box(xyz: XYZ, lwh: LWH, a: number): Primitive {
+export function Box(xyz: XYZ, lwh: LWH, a: number, color: string): Primitive {
+	//lwh.h = 0.1
+	const bottomCorners = corners(xyz, lwh, a)
+	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
 	return {
+		isTreeless: true,
+		isBarrier: true,
+		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lwh, a, wp, pad),
 		draw: (c: Config)=>{
 			if (XYDistance(XYMinusXY(xyz, c.cameraXYZ)) > c.worldViewRadius) return
 
-			const topZ = Math.min(xyz.z + lwh.h, c.cameraXYZ.z * .99)
-			const bps = corners(xyz, lwh, a)				// bottom corners
-			const tps = bps.map(bp=>XYZ(bp.x, bp.y, topZ))	// top corners
-			const xys = c.transform.xyzs([...bps, ...tps])
+			// transform all 8 corners
+			const xys = c.transform.xyzs([...bottomCorners, ...topCorners])
 
 			// draw the four vertical sides
+			c.lib.fillStyle = color ? color : "black"
 			for (let i = 0; i < 4; i++) {
 				c.lib.beginPath()
 				const j = (i + 1) % 4
@@ -34,8 +42,18 @@ export function Box(xyz: XYZ, lwh: LWH, a: number): Primitive {
 }
 
 // cylinder
-export function Can(xyz: XYZ, r: number, h: number): Primitive {
+export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
+	//h = 0.1
 	return {
+		isTreeless: true,
+		isBarrier: true,
+		contains: (wp: XY, pad: number)=>{
+			const min = r + pad + 0.25
+			const rSquared = min * min
+			const dp = XYMinusXY(wp, xyz)
+			const dSquared = dp.x * dp.x + dp.y * dp.y
+			return dSquared < rSquared
+		},
 		draw: (c: Config)=>{
 			
 			// find distance
@@ -53,12 +71,13 @@ export function Can(xyz: XYZ, r: number, h: number): Primitive {
 			const bxys = c.transform.xyzs([bp1, bp2, xyz, XYZ(c.cameraXYZ.x, c.cameraXYZ.y, 0)])
 
 			// find left and right point of tangency at top of cylinder
-			const topZ = Math.min(xyz.z + h, c.cameraXYZ.z * .99)
+			const topZ = xyz.z + h
 			const tp1 = XYZ(bp1.x, bp1.y, topZ)
 			const tp2 = XYZ(bp2.x, bp2.y, topZ)
 			const txys = c.transform.xyzs([tp1, tp2, XYZ(xyz.x, xyz.y, topZ)])
 
 			// draw
+			c.lib.fillStyle = color ? color : "black"
 			c.lib.beginPath()
 			moveTo(bxys[0], c)
 			linesTo([txys[0], txys[1]], c)
@@ -71,38 +90,81 @@ export function Can(xyz: XYZ, r: number, h: number): Primitive {
 	}
 }
 
-// rectangle on the ground, z is ignored
-export function Rug(xyz: XYZ, lw: LW, a: number): Primitive {
+// rectangle on the ground, z is ignored, lw is from center to edge (so half)
+export function Rug(xyz: XYZ, lw: LW, a: number, color: string, barrier: boolean, treeless: boolean): Primitive {
 	return {
+		isTreeless: treeless,
+		isBarrier: barrier,
+		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lw, a, wp, pad),
 		draw: (c: Config)=>{
-			if (XYDistance(XYMinusXY(xyz, c.playerXY)) > c.worldViewRadius + Math.max(lw.l, lw.w)) return
-			const wps = corners(xyz, lw, a)
-			const cps = c.transform.xyzs(wps)
-			c.lib.beginPath()
-			moveTo(cps[0], c)
-			linesTo([cps[1], cps[2], cps[3], cps[0]], c)
-			c.lib.fill()
+			if (color) {
+				if (XYDistance(XYMinusXY(xyz, c.playerXY)) > c.worldViewRadius + Math.max(lw.l, lw.w)) return
+				const wps = corners(xyz, lw, a)
+				const cps = c.transform.xyzs(wps)
+				c.lib.beginPath()
+				moveTo(cps[0], c)
+				linesTo([cps[1], cps[2], cps[3], cps[0]], c)
+				c.lib.fillStyle = color
+				c.lib.fill()
+			}
 		}
 	}
 }
 
-export function corners(xyz: XYZ, lw: LW, a: number): XYZ[] {
+export function TreeFence(p1: XY, p2: XY): Primitive {
+	const maxGap = 0.5
+	const randomR = ()=>Math.random() / 2 + 0.3
+	const trees: Primitive[] = []
+
+	// endpoint trees
+	let r1 = randomR()
+	let r2 = randomR()
+	trees.push(Can(XYZ(p1.x, p1.y, 0), r1, 1))
+
+	for (let p = p1;;) { // create a tree near p1 between p1 and p2
+		const d = distance(p2.x-p.x, p2.y-p.y)-r1-r2
+		if (d < maxGap) break
+		const a = Math.atan2(p2.y-p.y, p2.x-p.x)
+		const r = Math.min(randomR(), d/2)
+		const gap = maxGap - Math.random() * maxGap
+		const ra = RA(r1 + gap + r, a + Math.random() * 2-1)
+		p = XYPlusXY(p, RAToXYZ(ra))
+		r1 = r
+		trees.push(Can(XYZ(p.x, p.y, 0), r, 30))
+	}
+
+	return {
+		isTreeless: true,	// heh heh
+		isBarrier: true,
+		contains: (wp: XY, pad: number)=>trees.some(t=>t.contains(wp, pad)),
+		draw: (c: Config)=>trees.forEach(t=>t.draw(c))
+	}
+}
+
+function corners(xyz: XYZ, lw: LW, a: number): XYZ[] {
 	const ra = LWToRA(lw)
 	const ras = [RA(ra.r, ra.a+a), RA(ra.r, Math.PI-ra.a+a), RA(ra.r, Math.PI+ra.a+a), RA(ra.r, -ra.a+a)]
 	const result = ras.map(ra=>XYZPlusXYZ(xyz, RAToXYZ(ra)))
 	return result
 }
 
-export function moveTo(xy: XY, c: Config) {
+function moveTo(xy: XY, c: Config) {
 	c.lib.moveTo(xy.x, xy.y)
 }
 
-export function lineTo(xy: XY, c: Config) {
+function lineTo(xy: XY, c: Config) {
 	c.lib.lineTo(xy.x, xy.y)
 }
 
-export function linesTo(xys: XY[], c: Config) {
+function linesTo(xys: XY[], c: Config) {
 	xys.forEach(xy=>lineTo(xy, c))
+}
+
+// rotate back to zero and check using simple bounds
+function rectangleContains(xyz: XYZ, lw: LW, a: number, wp: XY, pad: number) {
+	const dp = XYMinusXY(wp, xyz)
+	const p = XYPlusXY(RAToXYZ(RA(XYDistance(dp), Math.atan2(dp.y, dp.x) - a)), xyz)
+	return p.x >= xyz.x-lw.l-pad && p.x <= xyz.x+lw.l+pad && p.y >= xyz.y-lw.w-pad && p.y <= xyz.y+lw.w+pad
 }
 
 export function Rain(c: Config): XYZ {
@@ -136,21 +198,4 @@ export function drawRain(p: XYZ, c: Config) {
 	c.lib.stroke()
 }
 
-	/*
-	//const trees = generateTrees(1000, 6)
-	
-	// divide the map into zones and put one tree in each zone
-	function generateTrees(mapSize: number, zoneSize: number): Tree[] {
-		const trees = [] as Tree[]
-		for (let zx = 0; zx * zoneSize < mapSize; zx++) {
-			for (let zy = 0; zy * zoneSize < mapSize; zy++) {
-				const r = Math.random() / 2 + 0.3
-				const tx = zx * zoneSize + Math.random() * (zoneSize - r * 2) + r
-				const ty = zy * zoneSize + Math.random() * (zoneSize - r * 2) + r
-				trees.push(Tree(Point(tx, ty), r))
-			}
-		}
-		return trees
-	}
-	*/
 
