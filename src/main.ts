@@ -1,7 +1,7 @@
 import { getTransform, Config, XYZ, XY, LWH, LW } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
 import { Primitive, Box, Can, Rug, TreeFence, Rain, drawRain } from './primitives'
-import { initSound, toggleSound, wind, playOrgan } from './sound';
+import { initSound, toggleSound, wind, playOrgan, flameOfUdun } from './sound';
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -63,6 +63,7 @@ function main() {
 			case 79: playOrgan(audioState); break;		// O organ
 			case 89: config.cameraXYZ.z++; break;		// Y camera up
 			case 72: config.cameraXYZ.z--; break;		// H camera down
+			case 70: flameOfUdun(audioState); break;
 			//default: console.log(key)
 		}
 		//draw()

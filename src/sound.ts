@@ -62,6 +62,36 @@ export function wind(audio: AudioState) {
 	node.connect(filter);
 }
 
+export function flameOfUdun(audio: AudioState) {
+	const bufferSize = 4096;
+
+	let gain = audio.context.createGain();
+	gain.connect(audio.totalGain);
+	gain.gain.setValueAtTime(0.01, audio.context.currentTime);
+	gain.gain.exponentialRampToValueAtTime(0.2, audio.context.currentTime + 0.4);
+	gain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
+	gain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
+
+	var filter = audio.context.createBiquadFilter();
+	filter.connect(gain);
+	filter.type = 'lowpass';
+	filter.frequency.value = 180;
+
+	let lastOut = 0.0;
+	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
+	node.onaudioprocess = function(e) {
+		let output = e.outputBuffer.getChannelData(0);
+		for (let i = 0; i < bufferSize; i++) {
+			let white = Math.random() * 2 - 1;
+			output[i] = (lastOut + (0.02 * white)) / 1.02;
+			lastOut = output[i];
+			output[i] *= 3.5; // (roughly) compensate for gain
+		}
+	}
+
+	node.connect(filter);
+}
+
 function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	let [frequency, start, end] = spec;
 
