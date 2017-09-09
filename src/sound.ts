@@ -32,7 +32,7 @@ export function wind(audio: AudioState) {
 
 	let gain = audio.context.createGain();
 	gain.connect(audio.totalGain);
-	gain.gain.setValueAtTime(0.08, audio.context.currentTime);
+	gain.gain.setValueAtTime(0.01, audio.context.currentTime);
 	var filter = audio.context.createBiquadFilter();
 	filter.connect(gain);
 	filter.type = 'lowpass';
@@ -55,7 +55,6 @@ export function wind(audio: AudioState) {
 			let white = Math.random() * 2 - 1;
 			output[i] = (lastOut + (0.02 * white)) / 1.02;
 			lastOut = output[i];
-			output[i] *= 3.5; // (roughly) compensate for gain
 		}
 	}
 
@@ -68,7 +67,7 @@ export function flameOfUdun(audio: AudioState) {
 	let gain = audio.context.createGain();
 	gain.connect(audio.totalGain);
 	gain.gain.setValueAtTime(0.01, audio.context.currentTime);
-	gain.gain.exponentialRampToValueAtTime(0.2, audio.context.currentTime + 0.4);
+	gain.gain.exponentialRampToValueAtTime(0.3, audio.context.currentTime + 0.4);
 	gain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
 	gain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
 
