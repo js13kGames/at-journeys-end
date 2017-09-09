@@ -1,4 +1,4 @@
-import { getTransform, Config, XYZ, XY, LWH, LW } from './geometry'
+import { getTransform, distance, Config, XYZ, XY, LWH, LW } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
 import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Rain, drawRain } from './primitives'
 import { initSound, toggleSound, wind, playOrgan } from './sound';
@@ -158,10 +158,10 @@ function main() {
 		config.transform = getTransform(config)
 
 		// draw the light
-		const lr = 800
+		const lr = distance(config.canvasLW.l/2, config.canvasLW.w/2)
 		const lightXY = config.transform.xyz(XYZ(config.playerXY.x, config.playerXY.y, 0))
 		const g = config.lib.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, lr)
-		const baseIntensity = 1, flickerAmount = 0.1
+		const baseIntensity = 1.2, flickerAmount = 0.1
 		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(config.time) +
 			Math.sin(2.2 * config.time + 5.52) + Math.sin(2.9 * config.time + 0.93) +
 			Math.sin(4.6 * config.time + 8.94))) / 4
@@ -170,6 +170,7 @@ function main() {
 		for (var i = 1; i < steps + 1; i++) {
 			let x = lightScale * Math.pow(i / steps, 2) + 1
 			let alpha = intensity / (x * x)
+			if (alpha < 0.01) alpha = 0
 			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
 		}
 		config.lib.fillStyle = g
