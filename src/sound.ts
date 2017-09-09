@@ -92,6 +92,48 @@ export function flameOfUdun(audio: AudioState) {
 	node.connect(filter);
 }
 
+export function thunder(audio: AudioState) {
+	const bufferSize = 4096;
+
+	let gain = audio.context.createGain();
+	gain.connect(audio.totalGain);
+	gain.gain.setValueAtTime(0.5, audio.context.currentTime);
+
+	var filter = audio.context.createBiquadFilter();
+	filter.connect(gain);
+	filter.type = 'lowpass';
+	filter.frequency.value = 180;
+
+	function modulate() {
+		let t = audio.context.currentTime;
+		gain.gain.setValueAtTime(0.7 + Math.random() * 0.2, t);
+		t += 0.2;
+		for (let i = 0; i < Math.random() * 6 + 2; i++) {
+			let a = Math.random();
+			gain.gain.linearRampToValueAtTime(a, t);
+			filter.frequency.value += (Math.random() * 200 - 50);
+			t += 0.2;
+		}
+		gain.gain.linearRampToValueAtTime(0.6, t);
+		gain.gain.linearRampToValueAtTime(0.001, t + 5);
+		setTimeout(modulate, (Math.random() * 10 + 6) * 1000);
+	};
+	modulate();
+
+	let lastOut = 0.0;
+	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
+	node.onaudioprocess = function(e) {
+		let output = e.outputBuffer.getChannelData(0);
+		for (let i = 0; i < bufferSize; i++) {
+			let white = Math.random() * 2 - 1;
+			output[i] = (lastOut + (0.02 * white)) / 1.02;
+			lastOut = output[i];
+		}
+	}
+
+	node.connect(filter);
+}
+
 function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	let [frequency, start, end] = spec;
 
