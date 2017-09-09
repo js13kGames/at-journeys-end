@@ -1,4 +1,4 @@
-import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
+import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
 
 export interface Primitive {
 	isTreeless: boolean
@@ -8,7 +8,7 @@ export interface Primitive {
 }
 
 // cuboid
-export function Box(xyz: XYZ, lwh: LWH, a: number, color: string): Primitive {
+export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 	//lwh.h = 0.1
 	const bottomCorners = corners(xyz, lwh, a)
 	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
@@ -111,26 +111,81 @@ export function Rug(xyz: XYZ, lw: LW, a: number, color: string, barrier: boolean
 	}
 }
 
-export function TreeFence(p1: XY, p2: XY): Primitive {
-	const maxGap = 0.5
+export function Road(xy: XYZ, lw: LW, a: number): Primitive {
+	const parts: Primitive[] = [Rug(XYZ(xy.x, xy.y, 0), lw, a, "#ccc", false, true)]
+	const lineLength = 1.5
+	const ra = RA(lw.l, a)
+	const dxyz = RAToXYZ(ra)
+	const p1 = XYMinusXY(xy, dxyz)
+	const p2 = XYPlusXY(xy, dxyz)
+	//parts.push(Fence([p1.x, -p1.y, p2.x, -p2.y]))
+
+	for (let i = lineLength; i < lw.l - lineLength; i += 4 * lineLength) {
+		const p = XY(p1.x + (p2.x - p1.x) * i / lw.l, p1.y + (p2.y - p1.y) * i / lw.l)
+		parts.push(Rug(XYZ(p.x, p.y, 0), LW(lineLength, .07), a, "#aa8", false, false))
+	}
+
+	return {
+		isTreeless: true,
+		isBarrier: false,
+		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
+		draw: (c: Config)=>parts.forEach(p=>p.draw(c))
+	}
+}
+
+export function Fence(a: number[]): Primitive {
+	const parts: Primitive[] = []
+
+	for (let i = 0; i < a.length - 2; i += 2) {
+		const p1 = XY(a[i], -a[i+1])
+		const p2 = XY(a[i+2], -a[i + 3])
+		const ra = XYsToRA(p1, p2)
+		const spans = Math.ceil(ra.r / 3)
+		const dx = (p2.x - p1.x) / spans
+		const dy = (p2.y - p1.y) / spans
+		for (let i = 0; i <= spans; i++) parts.push(Box(XYZ(p1.x + dx * i, p1.y + dy * i, ), LWH(.2, .2, 1.2), ra.a))
+		parts.push(Box(XYZ((p1.x+p2.x)/2, (p1.y+p2.y)/2, 0.7), LWH(ra.r/2, 0.1, 0.1), ra.a))
+	}
+
+	return {
+		isTreeless: true,
+		isBarrier: true,
+		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
+		draw: (c: Config)=>parts.forEach(p=>p.draw(c))
+	}
+}
+
+export function TreeFence(a: number[]): Primitive {
+	const maxGap = 0.9
 	const randomR = ()=>Math.random() / 2 + 0.3
+	const randomH = ()=>Math.random() < 0.15 ? 1 : 30
 	const trees: Primitive[] = []
 
-	// endpoint trees
-	let r1 = randomR()
-	let r2 = randomR()
-	trees.push(Can(XYZ(p1.x, p1.y, 0), r1, 1))
+	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]), XY(a[i+2], -a[i + 3]))
 
-	for (let p = p1;;) { // create a tree near p1 between p1 and p2
-		const d = distance(p2.x-p.x, p2.y-p.y)-r1-r2
-		if (d < maxGap) break
-		const a = Math.atan2(p2.y-p.y, p2.x-p.x)
-		const r = Math.min(randomR(), d/2)
-		const gap = maxGap - Math.random() * maxGap
-		const ra = RA(r1 + gap + r, a + Math.random() * 2-1)
-		p = XYPlusXY(p, RAToXYZ(ra))
-		r1 = r
-		trees.push(Can(XYZ(p.x, p.y, 0), r, 30))
+	function segment(p1: XY, p2: XY) {
+
+		// endpoint trees
+		let r1 = randomR()
+		let r2 = randomR()
+		trees.push(Can(XYZ(p1.x, p1.y, 0), r1, randomH()))
+		trees.push(Can(XYZ(p2.x, p2.y, 0), r2, randomH()))
+
+		for (let i = 0, p = p1;; i++) { // create a tree near p1 between p1 and p2
+			const d = distance(p2.x-p.x, p2.y-p.y)-r1-r2
+			if (d < maxGap) break
+			const angle = Math.atan2(p2.y-p.y, p2.x-p.x)
+			const r = Math.min(randomR(), d/2)
+			const gap = maxGap - Math.random() * maxGap
+			const ra = RA(r1 + gap + r, angle + Math.random() * 2.4-1.2)
+			p = XYPlusXY(p, RAToXYZ(ra))
+			r1 = r
+			trees.push(Can(XYZ(p.x, p.y, 0), r, randomH()))
+
+			// add a random tree at a right angle
+			const xy = XYPlusXY(p, RAToXYZ(RA(2 + Math.random() * 2, ra.a + Math.PI / 2 * (i % 2 ? 1 : -1))))
+			trees.push(Can(XYZ(xy.x, xy.y, 0), randomR()-.1, randomH()))
+		}
 	}
 
 	return {

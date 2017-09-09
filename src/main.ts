@@ -1,6 +1,6 @@
 import { getTransform, Config, XYZ, XY, LWH, LW } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
-import { Primitive, Box, Can, Rug, TreeFence, Rain, drawRain } from './primitives'
+import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Rain, drawRain } from './primitives'
 import { initSound, toggleSound, wind, playOrgan } from './sound';
 import { initMovement, moveWithDeflection } from './movement'
 
@@ -27,7 +27,7 @@ function main() {
 		time: 0,
 		playerXY: XY(0, 0),
 		playerAngle: upAngle,
-		cameraXYZ: XYZ(0, 0, 30),
+		cameraXYZ: XYZ(0, 0, 20),
 		cameraAngle: upAngle,
 		transform: undefined,
 		now: new Date().getTime(),
@@ -55,8 +55,9 @@ function main() {
 		switch (key) {
 			case 65: turnSpeed = -0.025; break;			// A left
 			case 68: turnSpeed = 0.025; break;			// D right
-			case 87: walkSpeed = 0.05; break;			// W up
-			case 83: walkSpeed = -0.05; break;			// S down
+			case 87: walkSpeed = 0.35; break;			// W up
+			case 83: walkSpeed = -0.35; break;			// S down
+
 			case 73: config.worldViewRadius--; break;	// I zoom in
 			case 75: config.worldViewRadius++; break;	// K zoom out
 			case 81: toggleSound(audioState); break;	// T toggle sound
@@ -88,23 +89,26 @@ function main() {
 	const planeColors = [
 		"yellow",	// not supported
 		"black",
-		"#080808",
+		"#888",
 		"red"
 	]
 
 	const primitives: Primitive[] = [
-		//TreeFence(XY(-10, -10), XY(10, -10))
-		...planes.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4], planeColors[a[5]], a[6]>1, a[6]!=2)),
+		//Fence([-15, 3, 0, 12, 15, 3]),
+		//Road(XYZ(0, 5, 0), LW(20, 7), .1),
+		...planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[3]*5, a[2]*5), a[4]+Math.PI/2)),
+		...planes.filter(a=>a[5] != 2).map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4], planeColors[a[5]], a[6]>1, a[6]!=2)),
 		...noTreeZones.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, false, true)),
 		...fuelCans.map(a=>Box(XYZ(a[0], -a[1], 0), LWH(0.3, 0.18, 0.3), 0, "red")),
 		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
 		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
-		...fences.filter(a=>a[0] == 2).map(a=>TreeFence(XY(a[1], -a[2]), XY(a[3], -a[4])))
+		...fences.filter(a=>a[0] == 1).map((a: number[])=>Fence(a.slice(1))),
+		...fences.filter(a=>a[0] == 2).map((a: number[])=>TreeFence(a.slice(1)))
 	]
-
+	
 	// generate trees by dividing the map into zones and putting one tree in each zone
 	const trees = []
-	const zoneSize = 6
+	const zoneSize = 5
 	const rand = (n: number, r: number)=>n + Math.random() * (zoneSize - r * 2) + r
 	for (let x = -170; x < 140; x += zoneSize) {
 		for (let y = -340; y < 0; y += zoneSize) {
@@ -128,17 +132,17 @@ function main() {
 
 		// update player
 		config.playerAngle += turnSpeed
-		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0, primitives)
+		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0.3, primitives)
 
 		// update camera
-		/*
 		config.cameraXYZ.x += (config.playerXY.x - config.cameraXYZ.x) * 0.02
 		config.cameraXYZ.y += (config.playerXY.y - config.cameraXYZ.y) * 0.02
 		config.cameraAngle += (config.playerAngle - config.cameraAngle) * 0.02
-		*/
+		/*
 		config.cameraXYZ.x = config.playerXY.x
 		config.cameraXYZ.y = config.playerXY.y
 		config.cameraAngle = config.playerAngle
+		*/
 
 		// clear the canvas
 		config.lib.fillStyle = "#040404"
@@ -166,7 +170,9 @@ function main() {
 
 		// draw primitives
 		config.lib.fillStyle = "black"
+		config.lib.globalCompositeOperation = "overlay"
 		primitives.forEach(p=>p.draw(config))
+		config.lib.globalCompositeOperation = "source-over"
 
 		// draw rain
 		//rains.forEach(rain=>drawRain(rain, config))
