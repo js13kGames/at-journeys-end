@@ -23,11 +23,11 @@ function main() {
 		lib: canvas.getContext('2d'),
 		canvasLW: undefined,
 		canvasCenter: undefined,
-		worldViewRadius: 50,
+		worldViewRadius: 25,
 		time: 0,
-		playerXY: XY(0, 0),
+		playerXY: XY(0, -210),
 		playerAngle: upAngle,
-		cameraXYZ: XYZ(0, 0, 20),
+		cameraXYZ: XYZ(0, -210, 20),
 		cameraAngle: upAngle,
 		transform: undefined,
 		now: new Date().getTime(),
@@ -92,13 +92,20 @@ function main() {
 		"#888",
 		"red"
 	]
+	const operations = [
+		"",
+		"overlay",
+		"multiply",
+		"multiply"
+	]
 
 	const primitives: Primitive[] = [
 		//Fence([-15, 3, 0, 12, 15, 3]),
 		//Road(XYZ(0, 5, 0), LW(20, 7), .1),
+		...planes.filter(a=>a[5] != 2).map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
+			planeColors[a[5]], operations[a[5]], a[6]>1, a[6]!=2)),
 		...planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[3]*5, a[2]*5), a[4]+Math.PI/2)),
-		...planes.filter(a=>a[5] != 2).map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4], planeColors[a[5]], a[6]>1, a[6]!=2)),
-		...noTreeZones.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, false, true)),
+		...noTreeZones.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, null, false, true)),
 		...fuelCans.map(a=>Box(XYZ(a[0], -a[1], 0), LWH(0.3, 0.18, 0.3), 0, "red")),
 		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
 		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
@@ -145,7 +152,7 @@ function main() {
 		*/
 
 		// clear the canvas
-		config.lib.fillStyle = "#040404"
+		config.lib.fillStyle = "#000"
 		config.lib.fillRect(0, 0, config.canvasLW.l, config.canvasLW.w)
 
 		config.transform = getTransform(config)
@@ -170,9 +177,9 @@ function main() {
 
 		// draw primitives
 		config.lib.fillStyle = "black"
-		config.lib.globalCompositeOperation = "overlay"
+		//config.lib.globalCompositeOperation = "multiply"
 		primitives.forEach(p=>p.draw(config))
-		config.lib.globalCompositeOperation = "source-over"
+		//config.lib.globalCompositeOperation = "source-over"
 
 		// draw rain
 		//rains.forEach(rain=>drawRain(rain, config))
