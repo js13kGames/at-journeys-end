@@ -32,17 +32,18 @@ export function wind(audio: AudioState) {
 
 	let gain = audio.context.createGain();
 	gain.connect(audio.totalGain);
-	gain.gain.setValueAtTime(0.01, audio.context.currentTime);
+	gain.gain.setValueAtTime(0.3, audio.context.currentTime);
 	var filter = audio.context.createBiquadFilter();
 	filter.connect(gain);
-	filter.type = 'lowpass';
+	filter.type = 'highpass';
+	filter.frequency.value = 4000
 
-	let filterFreqWave = new Float32Array(10);
+	let windModulation = new Float32Array(10);
 	function modulateWind() {
-		let last = filterFreqWave[9];
-		filterFreqWave = filterFreqWave.map(_ => Math.random() * 1200 + 400);
-		filterFreqWave[0] = last || filterFreqWave[0];
-		filter.frequency.setValueCurveAtTime(filterFreqWave, audio.context.currentTime, 30);
+		let last = windModulation[9];
+		windModulation = windModulation.map(_ => (Math.random() + Math.random()) - 0.75);
+		windModulation[0] = last || windModulation[0];
+		gain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);
 	};
 	modulateWind();
@@ -67,7 +68,7 @@ export function flameOfUdun(audio: AudioState) {
 	let gain = audio.context.createGain();
 	gain.connect(audio.totalGain);
 	gain.gain.setValueAtTime(0.01, audio.context.currentTime);
-	gain.gain.exponentialRampToValueAtTime(0.3, audio.context.currentTime + 0.4);
+	gain.gain.exponentialRampToValueAtTime(0.8, audio.context.currentTime + 0.4);
 	gain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
 	gain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
 
