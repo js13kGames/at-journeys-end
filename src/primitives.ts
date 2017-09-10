@@ -13,8 +13,11 @@ export interface Light extends Primitive {
 	setIntensity(i: number): void
 }
 
-// cuboid
-export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
+export interface FuelCan extends Primitive {
+	consume(): void
+}
+
+export function Cube(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 	const bottomCorners = corners(xyz, lwh, a)
 	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
 	return {
@@ -25,19 +28,24 @@ export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 		draw: (c: Config)=>{
 			if (XYDistance(XYMinusXY(xyz, c.cameraXYZ)) > c.worldViewRadius) return
 
+			// only render the two sides adjacent to the nearest corner
+			const dists = bottomCorners.map(p=>XYDistance(XYMinusXY(c.cameraXYZ, p)))
+			const nearest = dists.indexOf(Math.min(...dists))
+
 			// transform all 8 corners
 			const xys = c.transform.xyzs([...bottomCorners, ...topCorners])
 
 			// draw the four vertical sides
 			c.lib.fillStyle = color ? color : "black"
 			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
-			for (let i = 0; i < 4; i++) {
+			const sides = [(nearest + 3) % 4, nearest]
+			sides.forEach(i=>{
 				c.lib.beginPath()
 				const j = (i + 1) % 4
 				moveTo(xys[i], c)
 				linesTo([xys[i+4], xys[j+4], xys[j], xys[i]], c)
 				c.lib.fill()
-			}
+			})
 
 			// draw the top
 			c.lib.beginPath()
@@ -45,12 +53,19 @@ export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 			linesTo([xys[5], xys[6], xys[7], xys[4]], c)
 			c.lib.globalCompositeOperation = color ? "multiply" : "source-over"
 			c.lib.fill()
+
+/*
+			c.lib.beginPath()
+			c.lib.globalCompositeOperation = "source-over"
+			c.lib.fillStyle = "yellow"
+			c.lib.arc(xys[nearest].x, xys[nearest].y, 3, 0, Math.PI*2)
+			c.lib.fill()
+			*/
 		}
 	}
 }
 
-// cylinder
-export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
+export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 	//h = 0.1
 	return {
 		center: xyz,
@@ -84,24 +99,26 @@ export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 			const tp1 = XYZ(bp1.x, bp1.y, topZ)
 			const tp2 = XYZ(bp2.x, bp2.y, topZ)
 			const txys = c.transform.xyzs([tp1, tp2, XYZ(xyz.x, xyz.y, topZ)])
+			const topR = XYDistance(XYMinusXY(txys[0], txys[2]))
 
 			// draw
 			c.lib.fillStyle = color ? color : "black"
 			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
 			c.lib.beginPath()
 			moveTo(bxys[0], c)
-			linesTo([txys[0], txys[1]], c)
+			lineTo(txys[0], c)
+			c.lib.arcTo(bxys[3].x, bxys[3].y, txys[1].x, txys[1].y, topR)
 			c.lib.arcTo(bxys[3].x, bxys[3].y, txys[0].x, txys[0].y, XYDistance(XYMinusXY(bxys[0], bxys[2])))
 			c.lib.fill()
 			c.lib.beginPath()
-			c.lib.arc(txys[2].x, txys[2].y, XYDistance(XYMinusXY(txys[0], txys[2])), 0, 2 * Math.PI)
+			c.lib.arc(txys[2].x, txys[2].y, topR, 0, Math.PI*2)
 			c.lib.fill()
 		}
 	}
 }
 
 // rectangle on the ground, z is ignored, lw is from center to edge (so half)
-export function Rug(xyz: XYZ, lw: LW, a: number, color: string, operation: string, barrier: boolean, treeless: boolean): Primitive {
+export function Plane(xyz: XYZ, lw: LW, a: number, color: string, operation: string, barrier: boolean, treeless: boolean): Primitive {
 	return {
 		center: xyz,
 		isTreeless: treeless,
@@ -124,7 +141,7 @@ export function Rug(xyz: XYZ, lw: LW, a: number, color: string, operation: strin
 }
 
 export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
-	const parts: Primitive[] = [Rug(XYZ(xyz.x, xyz.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
+	const parts: Primitive[] = [Plane(XYZ(xyz.x, xyz.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
 	const lineLength = 1.0
 	const lineWidth = 0.15
 	const ra = RA(lw.l, a)
@@ -135,7 +152,7 @@ export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
 	// add stripes
 	for (let i = lineLength; i < lw.l - lineLength; i += 4 * lineLength) {
 		const p = XY(p1.x + (p2.x - p1.x) * i / lw.l, p1.y + (p2.y - p1.y) * i / lw.l)
-		parts.push(Rug(XYZ(p.x, p.y, 0), LW(lineLength, lineWidth), a, "#fff", "overlay", false, false)) // stripe
+		parts.push(Plane(XYZ(p.x, p.y, 0), LW(lineLength, lineWidth), a, "#fff", "overlay", false, false)) // stripe
 	}
 
 	return {
@@ -164,8 +181,8 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 			const edgeXY = c.transform.xyz(XYZPlusXYZ(xyz, XYZ(wr, 0, 0)))
 			const cr = distance(edgeXY.x - lightXY.x, edgeXY.y - lightXY.y)
 			const g = c.lib.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, cr)
-			const baseIntensity = b, flickerAmount = flicker ? 0.1 : 0
-			const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(c.time) +
+			const flickerAmount = flicker ? 0.1 : 0
+			const intensity = b + b * flickerAmount * (0.578 - (Math.sin(c.time) +
 				Math.sin(2.2 * c.time + 5.52) + Math.sin(2.9 * c.time + 0.93) +
 				Math.sin(4.6 * c.time + 8.94))) / 4
 			const steps = 20; // number of gradient steps
@@ -185,6 +202,24 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 	}
 }
 
+export function FuelCan(xyz: XYZ, a: number): Primitive {
+	const cube = Cube(xyz, LWH(0.27, 0.41, 0.9), a, "red")
+
+	// cylinder
+	const p = XYZPlusXYZ(xyz, RAToXYZ(RA(0.22, a + Math.PI / 2)))
+	const cylinder = Cylinder(XYZ(p.x, p.y, .9), .1, .01, "red")
+
+	const parts: Primitive[] = [cube, cylinder]
+
+	return {
+		center: xyz,
+		isTreeless: false,
+		isBarrier: true,
+		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
+		draw: (c: Config)=>parts.forEach(p=>p.draw(c))
+	}
+}
+
 export function Fence(a: number[]): Primitive {
 	const parts: Primitive[] = []
 
@@ -195,8 +230,8 @@ export function Fence(a: number[]): Primitive {
 		const spans = Math.ceil(ra.r / 3)
 		const dx = (p2.x - p1.x) / spans
 		const dy = (p2.y - p1.y) / spans
-		for (let i = 0; i <= spans; i++) parts.push(Box(XYZ(p1.x + dx * i, p1.y + dy * i, ), LWH(.2, .2, 1.2), ra.a))
-		parts.push(Box(XYZ((p1.x+p2.x)/2, (p1.y+p2.y)/2, 0.7), LWH(ra.r/2, 0.1, 0.1), ra.a))
+		for (let i = 0; i <= spans; i++) parts.push(Cube(XYZ(p1.x + dx * i, p1.y + dy * i, ), LWH(.2, .2, 1.2), ra.a))
+		parts.push(Cube(XYZ((p1.x+p2.x)/2, (p1.y+p2.y)/2, 0.7), LWH(ra.r/2, 0.1, 0.1), ra.a))
 	}
 
 	return {
@@ -208,7 +243,7 @@ export function Fence(a: number[]): Primitive {
 	}
 }
 
-export function TreeFence(a: number[]): Primitive {
+export function TreeFence(a: number[], avoid: Primitive[]): Primitive {
 	const maxGap = 0.9
 	const randomR = ()=>Math.random() / 2 + 0.3
 	const randomH = ()=>Math.random() < 0.15 ? 1 : 30
@@ -221,8 +256,8 @@ export function TreeFence(a: number[]): Primitive {
 		// endpoint trees
 		let r1 = randomR()
 		let r2 = randomR()
-		trees.push(Can(XYZ(p1.x, p1.y, 0), r1, randomH()))
-		trees.push(Can(XYZ(p2.x, p2.y, 0), r2, randomH()))
+		trees.push(Cylinder(XYZ(p1.x, p1.y, 0), r1, randomH()))
+		trees.push(Cylinder(XYZ(p2.x, p2.y, 0), r2, randomH()))
 
 		for (let i = 0, p = p1;; i++) { // create a tree near p1 between p1 and p2
 			const d = distance(p2.x-p.x, p2.y-p.y)-r1-r2
@@ -230,14 +265,16 @@ export function TreeFence(a: number[]): Primitive {
 			const angle = Math.atan2(p2.y-p.y, p2.x-p.x)
 			const r = Math.min(randomR(), d/2)
 			const gap = maxGap - Math.random() * maxGap
-			const ra = RA(r1 + gap + r, angle + Math.random() * 2.4-1.2)
+			const ra = RA(r1 + gap + r, angle + Math.random() * 1.4-.7)
 			p = XYPlusXY(p, RAToXYZ(ra))
 			r1 = r
-			trees.push(Can(XYZ(p.x, p.y, 0), r, randomH()))
+			trees.push(Cylinder(XYZ(p.x, p.y, 0), r, randomH()))
 
 			// add a random tree at a right angle
 			const xy = XYPlusXY(p, RAToXYZ(RA(2 + Math.random() * 2, ra.a + Math.PI / 2 * (i % 2 ? 1 : -1))))
-			trees.push(Can(XYZ(xy.x, xy.y, 0), randomR()-.1, randomH()))
+			const xyz = XYZ(xy.x, xy.y, 0)
+			const r3 = randomR()-.1
+			if (!avoid.some(p=>p.isTreeless && p.contains(xyz, r3))) trees.push(Cylinder(xyz, r3, randomH()))
 		}
 	}
 

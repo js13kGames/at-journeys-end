@@ -1,7 +1,7 @@
 import { getTransform, distance, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights } from './map'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
-import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Light, Rain, Player, drawRain } from './primitives'
+import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -25,10 +25,13 @@ function main() {
 		canvasCenter: undefined,
 		worldViewRadius: 37,
 		time: 0,
-		playerXY: XY(-300, -160),
+		//playerXY: XY(-300, -160),
 		//playerXY: XY(0, -1),
+		//playerXY: XY(-26, -236),
+		playerXY: XY(63, -245),
 		//playerXY: XY(-350, -260),
 		playerAngle: upAngle,
+		fuel: 100,
 		cameraXYZ: XYZ(0, 0, 20),
 		cameraAngle: upAngle,
 		transform: undefined,
@@ -105,21 +108,25 @@ function main() {
 	]
 
 	const lantern = Light(XYZ(0,0), config.worldViewRadius, 1, true)
+	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
 
 	const primitives: Primitive[] = [
 		lantern,
 		...lights.map(a=>Light(XYZ(a[0], -a[1]), a[2], a[3])),
-		...noTreeZones.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, null, false, true)),
-		...planes.filter(a=>a[5] != 2).map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
+		...noTreeZones.map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, null, false, true)),
+		...planes.filter(a=>a[5] != 2).map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
 				planeColors[a[5]], operations[a[5]], a[6]>1, a[6]!=2)),
 		...planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[3]*5, a[2]*5), a[4]+Math.PI/2)),
-		...fuelCans.map(a=>Box(XYZ(a[0], -a[1], 0), LWH(0.27, 0.41, 0.9), 0, "red")),
-		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
-		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
-		...fences.filter(a=>a[0] == 1).map((a: number[])=>Fence(a.slice(1))),
-		...fences.filter(a=>a[0] == 2).map((a: number[])=>TreeFence(a.slice(1))),
-		Player()
+		...cans,
+		...cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
+		...cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
+		...fences.filter(a=>a[0] == 1).map((a: number[])=>Fence(a.slice(1)))
 	]
+
+	primitives.push(
+		...fences.filter(a=>a[0] == 2).map((a: number[])=>TreeFence(a.slice(1), primitives)),
+		Player()
+	)
 
 	// generate trees by dividing the map into zones and putting one tree in each zone
 	const trees = []
@@ -129,7 +136,7 @@ function main() {
 		for (let y = -400; y < 0; y += zoneSize) {
 			const r = Math.random() / 2 + 0.3
 			const xyz = XYZ(rand(x, r), rand(y, r), 0)
-			if (!primitives.some(p=>p.isTreeless && p.contains(xyz, r))) trees.push(Can(xyz, r, 30, null))
+			if (!primitives.some(p=>p.isTreeless && p.contains(xyz, r))) trees.push(Cylinder(xyz, r, 30, null))
 		}
 	}
 	primitives.push(...trees)
@@ -148,8 +155,10 @@ function main() {
 		// update player and lantern
 		config.playerAngle += turnSpeed
 		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0.3, primitives)
+		config.fuel -= (config.frameMS / 1000) * .7
 		lantern.center.x = config.playerXY.x
 		lantern.center.y = config.playerXY.y
+		lantern.setIntensity((Math.pow(config.fuel, 0.5) + Math.pow(config.fuel, 1/3)) * .07)
 
 		// update camera
 		/*
@@ -179,7 +188,9 @@ function main() {
 		const frameRate = Math.round(1000 / config.frameMS)
 		config.lib.fillStyle = "yellow"
 		config.lib.font = "12px Arial"
-		config.lib.fillText(frameRate + " fps", 5, 15)
+		config.lib.fillText("(" + Math.round(config.playerXY.x) + ", " +
+			Math.round(config.playerXY.y) + ") " + frameRate + " fps" +
+			", fuel: " + config.fuel.toFixed(2), 5, 15)
 
 		window.requestAnimationFrame(draw)
 	}

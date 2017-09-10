@@ -40,6 +40,7 @@ export interface Config {
 	time: number
 	playerXY: XY
 	playerAngle: number
+	fuel: number
 	cameraXYZ: XYZ
 	cameraAngle: number
 	transform: Transform
