@@ -2,10 +2,12 @@ import { XY } from './geometry';
 
 const GAME_VOLUME = 0.5;
 const ORGAN_VOLUME = 0.2;
-const WIND_VOLUME = 0.3;
-const FLAME_OF_UDUN_VOLUME = 0.3;
+const WIND_VOLUME = 0.2;
+const FLAME_OF_UDUN_VOLUME = 0.6;
 const THUNDER_VOLUME = 0.5;
 const LAKE_VOLUME = 0.3;
+const STEP_VOLUME = 0.2;
+const BUFFER_SIZE = 4096;
 
 const openOrganR = new Float32Array([0, 1.0, 0.8, 0.6, 0.4, 0.2]);
 const openOrganI = new Float32Array(openOrganR.length);
@@ -18,6 +20,19 @@ export interface AudioState {
 	listener: AudioListener;
 	organPanner: PannerNode;
 	lakePanners: PannerNode[];
+	stepGain: GainNode;
+	stepFilter: BiquadFilterNode;
+	stepProcessorNode: ScriptProcessorNode;
+}
+
+function whiteNoise(e: AudioProcessingEvent) {
+	let lastOut = 0.0;
+	let output = e.outputBuffer.getChannelData(0);
+	for (let i = 0; i < BUFFER_SIZE; i++) {
+		let white = Math.random() * 2 - 1;
+		output[i] = (lastOut + (0.02 * white)) / 1.02;
+		lastOut = output[i];
+	}
 }
 
 export function initSound(playerPosition: XY, organPosition: XY, lakePositions: XY[]): AudioState {
@@ -40,7 +55,18 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 		return p
 	});
 
-	return { context, totalGain, organWave, listener, organPanner, lakePanners };
+	let stepGain = context.createGain();
+	stepGain.connect(totalGain);
+	let stepFilter = context.createBiquadFilter();
+	stepFilter.connect(stepGain);
+	stepFilter.type = 'bandpass';
+	let stepProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+
+	return {
+		context, totalGain, organWave,
+		listener, organPanner, lakePanners,
+		stepGain, stepFilter, stepProcessorNode
+	};
 }
 
 export function toggleSound(audio: AudioState) {
@@ -76,16 +102,23 @@ export function wind(audio: AudioState) {
 
 	let lastOut = 0.0;
 	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-	node.onaudioprocess = function(e) {
-		let output = e.outputBuffer.getChannelData(0);
-		for (let i = 0; i < bufferSize; i++) {
-			let white = Math.random() * 2 - 1;
-			output[i] = (lastOut + (0.02 * white)) / 1.02;
-			lastOut = output[i];
-		}
-	}
+	node.onaudioprocess = whiteNoise;
 
 	node.connect(filter);
+}
+
+export function stepSound(audio: AudioState) {
+	audio.stepFilter.frequency.value = 1500 + Math.random() * 1000;
+
+	let t0 = audio.context.currentTime + 0.05;
+	let t1 = t0 + 0.05 + 0.1 * Math.random();
+	let t2 = t1 + 0.05 + 0.1 * Math.random();
+	audio.stepGain.gain.linearRampToValueAtTime(STEP_VOLUME + Math.random() * STEP_VOLUME, t0);
+	audio.stepGain.gain.linearRampToValueAtTime(0.001, t1);
+	audio.stepGain.gain.setValueAtTime(0, t2);
+
+	audio.stepProcessorNode.onaudioprocess = whiteNoise;
+	audio.stepProcessorNode.connect(audio.stepFilter);
 }
 
 export function flameOfUdun(audio: AudioState) {
@@ -105,15 +138,7 @@ export function flameOfUdun(audio: AudioState) {
 
 	let lastOut = 0.0;
 	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-	node.onaudioprocess = function(e) {
-		let output = e.outputBuffer.getChannelData(0);
-		for (let i = 0; i < bufferSize; i++) {
-			let white = Math.random() * 2 - 1;
-			output[i] = (lastOut + (0.02 * white)) / 1.02;
-			lastOut = output[i];
-			output[i] *= 3.5; // (roughly) compensate for gain
-		}
-	}
+	node.onaudioprocess = whiteNoise;
 
 	node.connect(filter);
 }
@@ -148,30 +173,13 @@ export function thunder(audio: AudioState) {
 
 	let lastOut = 0.0;
 	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-	node.onaudioprocess = function(e) {
-		let output = e.outputBuffer.getChannelData(0);
-		for (let i = 0; i < bufferSize; i++) {
-			let white = Math.random() * 2 - 1;
-			output[i] = (lastOut + (0.02 * white)) / 1.02;
-			lastOut = output[i];
-		}
-	}
+	node.onaudioprocess = whiteNoise;
 
 	node.connect(filter);
 }
 
 export function lake(audio: AudioState) {
 	const bufferSize = 4096;
-
-	function noise(e: AudioProcessingEvent) {
-		let lastOut = 0.0;
-		let output = e.outputBuffer.getChannelData(0);
-		for (let i = 0; i < bufferSize; i++) {
-			let white = Math.random() * 2 - 1;
-			output[i] = (lastOut + (0.02 * white)) / 1.02;
-			lastOut = output[i];
-		}
-	}
 
 	let lakeGains = audio.lakePanners.map(p => {
 		p.connect(audio.totalGain);
@@ -185,7 +193,7 @@ export function lake(audio: AudioState) {
 		gain.connect(filter);
 
 		let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-		node.onaudioprocess = noise;
+		node.onaudioprocess = whiteNoise;
 		node.connect(gain);
 
 		return gain;

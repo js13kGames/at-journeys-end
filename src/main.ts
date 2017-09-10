@@ -1,8 +1,10 @@
 import { getTransform, distance, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
-import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, thunder, wind } from './sound';
+import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';
 import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Rain, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
+
+const TIME_UNITS_PER_STEP = 30
 
 function main() {
 	const body = document.body.style
@@ -149,6 +151,9 @@ function main() {
 
 		let playerDirection = RAToXYZ(RA(1, config.playerAngle))
 		moveListener(audioState, config.playerXY, playerDirection)
+		if (walkSpeed && Math.round(config.time * 10) % TIME_UNITS_PER_STEP === 0) {
+			stepSound(audioState)
+		}
 
 		// update camera
 		/*
