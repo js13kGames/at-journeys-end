@@ -31,6 +31,7 @@ function main() {
 		frameMS: 0
 	}
 
+	// TODO: assign locations based on 'sounds' array from 'map' module
 	const audioState = initSound(config.playerXY,
 		XY(32.75, -22.5),
 		[XY(-25, -5), XY(30, -9), XY(12, -10), XY(-9, -12)])
