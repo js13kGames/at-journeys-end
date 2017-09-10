@@ -37,6 +37,7 @@ export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 			c.lib.beginPath()
 			moveTo(xys[4], c)
 			linesTo([xys[5], xys[6], xys[7], xys[4]], c)
+			c.lib.globalCompositeOperation = color ? "multiply" : "source-over"
 			c.lib.fill()
 		}
 	}
@@ -115,7 +116,7 @@ export function Rug(xyz: XYZ, lw: LW, a: number, color: string, operation: strin
 }
 
 export function Road(xy: XYZ, lw: LW, a: number): Primitive {
-	const parts: Primitive[] = [Rug(XYZ(xy.x, xy.y, 0), lw, a, "#6d6d6d", "multiply", false, true)]
+	const parts: Primitive[] = [Rug(XYZ(xy.x, xy.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
 	const lineLength = 1.0
 	const lineWidth = 0.15
 	const ra = RA(lw.l, a)
@@ -123,9 +124,10 @@ export function Road(xy: XYZ, lw: LW, a: number): Primitive {
 	const p1 = XYMinusXY(xy, dxyz)
 	const p2 = XYPlusXY(xy, dxyz)
 
+	// add stripes
 	for (let i = lineLength; i < lw.l - lineLength; i += 4 * lineLength) {
 		const p = XY(p1.x + (p2.x - p1.x) * i / lw.l, p1.y + (p2.y - p1.y) * i / lw.l)
-		parts.push(Rug(XYZ(p.x, p.y, 0), LW(lineLength, lineWidth), a, "#fff", "overlay", false, false))
+		parts.push(Rug(XYZ(p.x, p.y, 0), LW(lineLength, lineWidth), a, "#fff", "overlay", false, false)) // stripe
 	}
 
 	return {

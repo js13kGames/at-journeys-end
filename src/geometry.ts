@@ -75,6 +75,10 @@ export function XYDistance(xy: XY): number {
 	return Math.sqrt(xy.x * xy.x + xy.y * xy.y)
 }
 
+export function XYToRA(xy: XY): RA {
+	return LWToRA(LW(xy.x, xy.y))
+}
+
 export function XYsToRA(xy1: XY, xy2: XY): RA {
 	return LWToRA(LW(xy2.x-xy1.x, xy2.y-xy1.y))
 }
