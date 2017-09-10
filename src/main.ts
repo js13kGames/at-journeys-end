@@ -1,4 +1,4 @@
-import { getTransform, distance, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
+import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights } from './map'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
 import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, drawRain } from './primitives'
@@ -6,6 +6,7 @@ import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
 	const body = document.body.style
+	body.backgroundColor = "#000"
 	body.margin = "0px"
 	body.overflow = "hidden"
 
@@ -155,10 +156,10 @@ function main() {
 		// update player and lantern
 		config.playerAngle += turnSpeed
 		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0.3, primitives)
-		config.fuel -= (config.frameMS / 1000) * .7
+		config.fuel = Math.max(config.fuel - (config.frameMS / 1000) * 4.7, 0)
 		lantern.center.x = config.playerXY.x
 		lantern.center.y = config.playerXY.y
-		lantern.setIntensity((Math.pow(config.fuel, 0.5) + Math.pow(config.fuel, 1/3)) * .07)
+		lantern.setIntensity(Math.max((Math.pow(config.fuel, 0.5) + Math.pow(config.fuel, 1/3)) * .07, 0.1))
 
 		// update camera
 		/*
@@ -183,6 +184,14 @@ function main() {
 
 		// draw rain
 		//rains.forEach(rain=>drawRain(rain, config))
+
+		// check for refueling
+		cans.forEach(c=>{
+			if (c.contains(config.playerXY, 0.5)) {
+				config.fuel = Math.min(config.fuel + 50, 100)
+				c.consume()
+			}
+		})
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / config.frameMS)

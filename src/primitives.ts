@@ -53,20 +53,11 @@ export function Cube(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 			linesTo([xys[5], xys[6], xys[7], xys[4]], c)
 			c.lib.globalCompositeOperation = color ? "multiply" : "source-over"
 			c.lib.fill()
-
-/*
-			c.lib.beginPath()
-			c.lib.globalCompositeOperation = "source-over"
-			c.lib.fillStyle = "yellow"
-			c.lib.arc(xys[nearest].x, xys[nearest].y, 3, 0, Math.PI*2)
-			c.lib.fill()
-			*/
 		}
 	}
 }
 
 export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
-	//h = 0.1
 	return {
 		center: xyz,
 		isTreeless: true,
@@ -202,8 +193,9 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 	}
 }
 
-export function FuelCan(xyz: XYZ, a: number): Primitive {
+export function FuelCan(xyz: XYZ, a: number): FuelCan {
 	const cube = Cube(xyz, LWH(0.27, 0.41, 0.9), a, "red")
+	let full = true
 
 	// cylinder
 	const p = XYZPlusXYZ(xyz, RAToXYZ(RA(0.22, a + Math.PI / 2)))
@@ -214,9 +206,10 @@ export function FuelCan(xyz: XYZ, a: number): Primitive {
 	return {
 		center: xyz,
 		isTreeless: false,
-		isBarrier: true,
-		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
-		draw: (c: Config)=>parts.forEach(p=>p.draw(c))
+		isBarrier: full,
+		contains: (wp: XY, pad: number)=>full && parts.some(p=>p.contains(wp, pad)),
+		draw: (c: Config)=>full && parts.forEach(p=>p.draw(c)),
+		consume: ()=>full = false
 	}
 }
 
@@ -379,5 +372,3 @@ export function drawRain(p: XYZ, c: Config) {
 	c.lib.strokeStyle = "#" + light + light + light
 	c.lib.stroke()
 }
-
-
