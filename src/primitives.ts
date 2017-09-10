@@ -24,6 +24,7 @@ export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 
 			// draw the four vertical sides
 			c.lib.fillStyle = color ? color : "black"
+			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
 			for (let i = 0; i < 4; i++) {
 				c.lib.beginPath()
 				const j = (i + 1) % 4
@@ -36,6 +37,7 @@ export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 			c.lib.beginPath()
 			moveTo(xys[4], c)
 			linesTo([xys[5], xys[6], xys[7], xys[4]], c)
+			c.lib.globalCompositeOperation = color ? "multiply" : "source-over"
 			c.lib.fill()
 		}
 	}
@@ -78,6 +80,7 @@ export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 
 			// draw
 			c.lib.fillStyle = color ? color : "black"
+			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
 			c.lib.beginPath()
 			moveTo(bxys[0], c)
 			linesTo([txys[0], txys[1]], c)
@@ -91,7 +94,7 @@ export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 }
 
 // rectangle on the ground, z is ignored, lw is from center to edge (so half)
-export function Rug(xyz: XYZ, lw: LW, a: number, color: string, barrier: boolean, treeless: boolean): Primitive {
+export function Rug(xyz: XYZ, lw: LW, a: number, color: string, operation: string, barrier: boolean, treeless: boolean): Primitive {
 	return {
 		isTreeless: treeless,
 		isBarrier: barrier,
@@ -105,6 +108,7 @@ export function Rug(xyz: XYZ, lw: LW, a: number, color: string, barrier: boolean
 				moveTo(cps[0], c)
 				linesTo([cps[1], cps[2], cps[3], cps[0]], c)
 				c.lib.fillStyle = color
+				c.lib.globalCompositeOperation = operation
 				c.lib.fill()
 			}
 		}
@@ -112,17 +116,18 @@ export function Rug(xyz: XYZ, lw: LW, a: number, color: string, barrier: boolean
 }
 
 export function Road(xy: XYZ, lw: LW, a: number): Primitive {
-	const parts: Primitive[] = [Rug(XYZ(xy.x, xy.y, 0), lw, a, "#ccc", false, true)]
-	const lineLength = 1.5
+	const parts: Primitive[] = [Rug(XYZ(xy.x, xy.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
+	const lineLength = 1.0
+	const lineWidth = 0.15
 	const ra = RA(lw.l, a)
 	const dxyz = RAToXYZ(ra)
 	const p1 = XYMinusXY(xy, dxyz)
 	const p2 = XYPlusXY(xy, dxyz)
-	//parts.push(Fence([p1.x, -p1.y, p2.x, -p2.y]))
 
+	// add stripes
 	for (let i = lineLength; i < lw.l - lineLength; i += 4 * lineLength) {
 		const p = XY(p1.x + (p2.x - p1.x) * i / lw.l, p1.y + (p2.y - p1.y) * i / lw.l)
-		parts.push(Rug(XYZ(p.x, p.y, 0), LW(lineLength, .07), a, "#aa8", false, false))
+		parts.push(Rug(XYZ(p.x, p.y, 0), LW(lineLength, lineWidth), a, "#fff", "overlay", false, false)) // stripe
 	}
 
 	return {
