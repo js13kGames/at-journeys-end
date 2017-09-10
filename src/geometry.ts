@@ -107,7 +107,7 @@ export function getTransform(c: Config): Transform {
 
 	// precalculate canvas center, canvas radius, and scale
 	const cx = c.canvasLW.l / 2
-	const cy = c.canvasLW.w / 2
+	const cy = c.canvasLW.w *.65
 	const cr = distance(cx, cy)
 	const cScale = cr / c.worldViewRadius
 	const maxZ = c.cameraXYZ.z * .99

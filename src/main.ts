@@ -1,7 +1,7 @@
 import { getTransform, distance, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
-import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
+import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights } from './map'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
-import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Rain, drawRain } from './primitives'
+import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Light, Rain, Player, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -23,9 +23,11 @@ function main() {
 		lib: canvas.getContext('2d'),
 		canvasLW: undefined,
 		canvasCenter: undefined,
-		worldViewRadius: 25,
+		worldViewRadius: 37,
 		time: 0,
-		playerXY: XY(0, 0),
+		playerXY: XY(-300, -160),
+		//playerXY: XY(0, -1),
+		//playerXY: XY(-350, -260),
 		playerAngle: upAngle,
 		cameraXYZ: XYZ(0, 0, 20),
 		cameraAngle: upAngle,
@@ -66,9 +68,10 @@ function main() {
 			case 72: config.cameraXYZ.z--; break;		// H camera down
 			case 70: flameOfUdun(audioState); break;        // F flame
 			case 84: thunder(audioState); break;            // T thunder
-			//default: console.log(key)
+			case 48: lantern.setIntensity(0); break;	// 0 lantern off
+			case 49: lantern.setIntensity(1); break;	// 1 lantern on
+			default: console.log(key)
 		}
-		//draw()
 	}
 
 	function keyUp(key: Number) {
@@ -101,17 +104,21 @@ function main() {
 		"multiply"
 	]
 
+	const lantern = Light(XYZ(0,0), config.worldViewRadius, 1, true)
+
 	const primitives: Primitive[] = [
+		lantern,
+		...lights.map(a=>Light(XYZ(a[0], -a[1]), a[2], a[3])),
 		...noTreeZones.map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, null, false, true)),
 		...planes.filter(a=>a[5] != 2).map(a=>Rug(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
 				planeColors[a[5]], operations[a[5]], a[6]>1, a[6]!=2)),
 		...planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[3]*5, a[2]*5), a[4]+Math.PI/2)),
-		//...lights.map(a=>Light(
 		...fuelCans.map(a=>Box(XYZ(a[0], -a[1], 0), LWH(0.27, 0.41, 0.9), 0, "red")),
 		...cylinders.map(a=>Can(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
 		...cubes.map(a=>Box(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
 		...fences.filter(a=>a[0] == 1).map((a: number[])=>Fence(a.slice(1))),
-		...fences.filter(a=>a[0] == 2).map((a: number[])=>TreeFence(a.slice(1)))
+		...fences.filter(a=>a[0] == 2).map((a: number[])=>TreeFence(a.slice(1))),
+		Player()
 	]
 
 	// generate trees by dividing the map into zones and putting one tree in each zone
@@ -138,9 +145,11 @@ function main() {
 		config.now = now
 		config.time += 0.1
 
-		// update player
+		// update player and lantern
 		config.playerAngle += turnSpeed
 		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0.3, primitives)
+		lantern.center.x = config.playerXY.x
+		lantern.center.y = config.playerXY.y
 
 		// update camera
 		/*
@@ -159,34 +168,12 @@ function main() {
 
 		config.transform = getTransform(config)
 
-		// draw the light
-		const lr = distance(config.canvasLW.l/2, config.canvasLW.w/2)
-		const lightXY = config.transform.xyz(XYZ(config.playerXY.x, config.playerXY.y, 0))
-		const g = config.lib.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, lr)
-		const baseIntensity = 1.2, flickerAmount = 0.1
-		const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(config.time) +
-			Math.sin(2.2 * config.time + 5.52) + Math.sin(2.9 * config.time + 0.93) +
-			Math.sin(4.6 * config.time + 8.94))) / 4
-		const steps = 20; // number of gradient steps
-		const lightScale = 15; // controls how quickly the light falls off
-		for (var i = 1; i < steps + 1; i++) {
-			let x = lightScale * Math.pow(i / steps, 2) + 1
-			let alpha = intensity / (x * x)
-			if (alpha < 0.01) alpha = 0
-			g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
-		}
-		config.lib.fillStyle = g
-		config.lib.fillRect(lightXY.x - lr, lightXY.y - lr, lr * 2, lr * 2)
-
 		// draw primitives
 		config.lib.fillStyle = "black"
 		primitives.forEach(p=>p.draw(config))
 
 		// draw rain
 		//rains.forEach(rain=>drawRain(rain, config))
-
-		// draw the player
-		drawPlayer()
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / config.frameMS)
@@ -195,33 +182,6 @@ function main() {
 		config.lib.fillText(frameRate + " fps", 5, 15)
 
 		window.requestAnimationFrame(draw)
-	}
-
-	const playerWPs = [
-		XY(-0.113, 0.106),
-		XY(-0.113, 0.106), XY(-0.097, 0.038), XY(0.002, 0.04),
-		XY(0.103, 0.041), XY(0.098, 0.113), XY(0.116, 0.131),
-		XY(0.141, 0.158), XY(0.226, 0.129), XY(0.227, 0.25),
-		XY(0.228, 0.316), XY(0.087, 0.361), XY(-0.022, 0.354),
-		XY(-0.116, 0.354), XY(-0.269, 0.319), XY(-0.269, 0.183),
-		XY(-0.271, 0.013), XY(-0.2, -0.082), XY(-0.15, -0.08),
-		XY(-0.097, -0.081), XY(-0.085, -0.033), XY(-0.097, -0.003),
-		XY(-0.156, 0.146), XY(-0.111, 0.106), XY(-0.111, 0.106)
-	]
-
-	function drawPlayer() {
-		const playerXYZ = XYZ(config.playerXY.x, config.playerXY.y)
-		const wps = playerWPs.map(wp=>XYZPlusXYZ(playerXYZ,
-			RAToXYZ(RA(distance(wp.x, wp.y)*2, Math.atan2(wp.y, wp.x) + config.playerAngle - upAngle))))
-		const cps = config.transform.xyzs(wps)
-		config.lib.beginPath()
-		config.lib.moveTo(cps[0].x, cps[0].y)
-		for (let i = 1; i < cps.length; i += 3) {
-			config.lib.bezierCurveTo(cps[i].x, cps[i].y, cps[i+1].x, cps[i+1].y, cps[i+2].x, cps[i+2].y)
-		}
-
-		config.lib.fillStyle = "black"
-		config.lib.fill()
 	}
 
 	// start it up

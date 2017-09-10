@@ -1,18 +1,24 @@
 import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
 
 export interface Primitive {
+	center: XYZ
 	isTreeless: boolean
 	isBarrier: boolean
 	contains(wp: XY, pad: number): boolean
 	draw(c: Config): void
 }
 
+export interface Light extends Primitive {
+	setRadius(r: number): void
+	setIntensity(i: number): void
+}
+
 // cuboid
 export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
-	//lwh.h = 0.1
 	const bottomCorners = corners(xyz, lwh, a)
 	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
 	return {
+		center: xyz,
 		isTreeless: true,
 		isBarrier: true,
 		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lwh, a, wp, pad),
@@ -47,6 +53,7 @@ export function Box(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 	//h = 0.1
 	return {
+		center: xyz,
 		isTreeless: true,
 		isBarrier: true,
 		contains: (wp: XY, pad: number)=>{
@@ -96,6 +103,7 @@ export function Can(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 // rectangle on the ground, z is ignored, lw is from center to edge (so half)
 export function Rug(xyz: XYZ, lw: LW, a: number, color: string, operation: string, barrier: boolean, treeless: boolean): Primitive {
 	return {
+		center: xyz,
 		isTreeless: treeless,
 		isBarrier: barrier,
 		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lw, a, wp, pad),
@@ -115,14 +123,14 @@ export function Rug(xyz: XYZ, lw: LW, a: number, color: string, operation: strin
 	}
 }
 
-export function Road(xy: XYZ, lw: LW, a: number): Primitive {
-	const parts: Primitive[] = [Rug(XYZ(xy.x, xy.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
+export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
+	const parts: Primitive[] = [Rug(XYZ(xyz.x, xyz.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
 	const lineLength = 1.0
 	const lineWidth = 0.15
 	const ra = RA(lw.l, a)
 	const dxyz = RAToXYZ(ra)
-	const p1 = XYMinusXY(xy, dxyz)
-	const p2 = XYPlusXY(xy, dxyz)
+	const p1 = XYMinusXY(xyz, dxyz)
+	const p2 = XYPlusXY(xyz, dxyz)
 
 	// add stripes
 	for (let i = lineLength; i < lw.l - lineLength; i += 4 * lineLength) {
@@ -131,10 +139,49 @@ export function Road(xy: XYZ, lw: LW, a: number): Primitive {
 	}
 
 	return {
+		center: xyz,
 		isTreeless: true,
 		isBarrier: false,
 		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
 		draw: (c: Config)=>parts.forEach(p=>p.draw(c))
+	}
+}
+
+export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
+	return {
+		center: xyz,
+		isTreeless: false,
+		isBarrier: false,
+		contains: ()=>false,
+		draw: (c: Config)=>{
+			
+			// find distance
+			const dxy = XYMinusXY(xyz, c.cameraXYZ)
+			const d = XYDistance(dxy)
+			if (d > c.worldViewRadius * 1.5) return
+
+			const lightXY = c.transform.xyz(xyz)
+			const edgeXY = c.transform.xyz(XYZPlusXYZ(xyz, XYZ(wr, 0, 0)))
+			const cr = distance(edgeXY.x - lightXY.x, edgeXY.y - lightXY.y)
+			const g = c.lib.createRadialGradient(lightXY.x, lightXY.y, 0, lightXY.x, lightXY.y, cr)
+			const baseIntensity = b, flickerAmount = flicker ? 0.1 : 0
+			const intensity = baseIntensity + flickerAmount * (0.578 - (Math.sin(c.time) +
+				Math.sin(2.2 * c.time + 5.52) + Math.sin(2.9 * c.time + 0.93) +
+				Math.sin(4.6 * c.time + 8.94))) / 4
+			const steps = 20; // number of gradient steps
+			const lightScale = 15; // controls how quickly the light falls off
+			for (var i = 1; i < steps + 1; i++) {
+				let x = lightScale * Math.pow(i / steps, 2) + 1
+				let alpha = intensity / (x * x)
+				if (alpha < 0.01) alpha = 0
+				g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
+			}
+			c.lib.fillStyle = g
+			c.lib.globalCompositeOperation = "source-over"
+			c.lib.fillRect(lightXY.x - cr, lightXY.y - cr, cr * 2, cr * 2)
+		},
+		setRadius: (r: number)=>wr = r,
+		setIntensity: (i: number)=>b = i
 	}
 }
 
@@ -153,6 +200,7 @@ export function Fence(a: number[]): Primitive {
 	}
 
 	return {
+		center: null,
 		isTreeless: true,
 		isBarrier: true,
 		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
@@ -194,12 +242,49 @@ export function TreeFence(a: number[]): Primitive {
 	}
 
 	return {
+		center: null,
 		isTreeless: true,	// heh heh
 		isBarrier: true,
 		contains: (wp: XY, pad: number)=>trees.some(t=>t.contains(wp, pad)),
 		draw: (c: Config)=>trees.forEach(t=>t.draw(c))
 	}
 }
+
+const playerWPs = [
+	XY(-0.113, 0.106),
+	XY(-0.113, 0.106), XY(-0.097, 0.038), XY(0.002, 0.04),
+	XY(0.103, 0.041), XY(0.098, 0.113), XY(0.116, 0.131),
+	XY(0.141, 0.158), XY(0.226, 0.129), XY(0.227, 0.25),
+	XY(0.228, 0.316), XY(0.087, 0.361), XY(-0.022, 0.354),
+	XY(-0.116, 0.354), XY(-0.269, 0.319), XY(-0.269, 0.183),
+	XY(-0.271, 0.013), XY(-0.2, -0.082), XY(-0.15, -0.08),
+	XY(-0.097, -0.081), XY(-0.085, -0.033), XY(-0.097, -0.003),
+	XY(-0.156, 0.146), XY(-0.111, 0.106), XY(-0.111, 0.106)
+]
+
+export function Player(): Primitive {
+	return {
+		center: null,
+		isTreeless: false,
+		isBarrier: false,
+		contains: (wp: XY, pad: number)=>false,
+		draw: (c: Config)=>{
+			const playerXYZ = XYZ(c.playerXY.x, c.playerXY.y)
+			const wps = playerWPs.map(wp=>XYZPlusXYZ(playerXYZ,
+				RAToXYZ(RA(distance(wp.x, wp.y)*2, Math.atan2(wp.y, wp.x) + c.playerAngle - 1.5*Math.PI))))
+			const cps = c.transform.xyzs(wps)
+			c.lib.beginPath()
+			c.lib.moveTo(cps[0].x, cps[0].y)
+			for (let i = 1; i < cps.length; i += 3) {
+				c.lib.bezierCurveTo(cps[i].x, cps[i].y, cps[i+1].x, cps[i+1].y, cps[i+2].x, cps[i+2].y)
+			}
+			c.lib.fillStyle = "black"
+			c.lib.globalCompositeOperation = "source-over"
+			c.lib.fill()
+		}
+	}
+}
+
 
 function corners(xyz: XYZ, lw: LW, a: number): XYZ[] {
 	const ra = LWToRA(lw)
