@@ -1,6 +1,6 @@
 import { getTransform, distance, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences } from './map'
-import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
+import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, thunder, wind } from './sound';
 import { Primitive, Box, Can, Rug, Fence, TreeFence, Road, Rain, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
@@ -11,9 +11,6 @@ function main() {
 
 	const canvas = <HTMLCanvasElement>document.createElement("canvas")
 	document.body.appendChild(canvas)
-
-	const audioState = initSound()
-	wind(audioState)
 
 	initMovement()
 
@@ -33,6 +30,13 @@ function main() {
 		now: new Date().getTime(),
 		frameMS: 0
 	}
+
+	const audioState = initSound(config.playerXY,
+		XY(32.75, -22.5),
+		[XY(-25, -5), XY(30, -9), XY(12, -10), XY(-9, -12)])
+	wind(audioState)
+	lake(audioState)
+	playOrgan(audioState)
 
 	function resize() {
 		const w = window.innerWidth
@@ -141,6 +145,9 @@ function main() {
 		// update player
 		config.playerAngle += turnSpeed
 		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0.3, primitives)
+
+		let playerDirection = RAToXYZ(RA(1, config.playerAngle))
+		moveListener(audioState, config.playerXY, playerDirection)
 
 		// update camera
 		/*

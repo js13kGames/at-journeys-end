@@ -1,8 +1,11 @@
+import { XY } from './geometry';
+
 const GAME_VOLUME = 0.5;
-const ORGAN_VOLUME = 0.03;
-const WIND_VOLUME = 0.4;
-const FLAME_OF_UDUN_VOLUME = 0.2;
-const THUNDER_VOLUME = 0.6;
+const ORGAN_VOLUME = 0.2;
+const WIND_VOLUME = 0.3;
+const FLAME_OF_UDUN_VOLUME = 0.3;
+const THUNDER_VOLUME = 0.5;
+const LAKE_VOLUME = 0.3;
 
 const openOrganR = new Float32Array([0, 1.0, 0.8, 0.6, 0.4, 0.2]);
 const openOrganI = new Float32Array(openOrganR.length);
@@ -12,20 +15,41 @@ export interface AudioState {
 	context: AudioContext;
 	totalGain: GainNode;
 	organWave: PeriodicWave;
+	listener: AudioListener;
+	organPanner: PannerNode;
+	lakePanners: PannerNode[];
 }
 
-export function initSound(): AudioState {
+export function initSound(playerPosition: XY, organPosition: XY, lakePositions: XY[]): AudioState {
 	let context = new AudioContext();
 	let totalGain = context.createGain();
 	totalGain.gain.value = GAME_VOLUME;
 	totalGain.connect(context.destination);
 	let organWave = organTable(context);
 
-	return { context, totalGain, organWave };
+	let listener = context.listener;
+	listener.setPosition(playerPosition.x, playerPosition.y, 0);
+
+	let organPanner = context.createPanner();
+	organPanner.setPosition(organPosition.x, organPosition.y, 0);
+
+	let lakePanners = lakePositions.map(pos => {
+		let p = context.createPanner();
+		p.setPosition(pos.x, pos.y, 0);
+		p.distanceModel = 'linear';
+		return p
+	});
+
+	return { context, totalGain, organWave, listener, organPanner, lakePanners };
 }
 
 export function toggleSound(audio: AudioState) {
 	audio.totalGain.gain.value = GAME_VOLUME * (audio.totalGain.gain.value ? 0 : 1);
+}
+
+export function moveListener(audio: AudioState, playerPosition: XY, playerDirection: XY) {
+	audio.listener.setPosition(playerPosition.x, playerPosition.y, 0);
+	audio.listener.setOrientation(playerDirection.x, playerDirection.y, 0, 0, 1, 0);
 }
 
 // The basic random noise generator was lifted from this helpful post:
@@ -136,11 +160,56 @@ export function thunder(audio: AudioState) {
 	node.connect(filter);
 }
 
+export function lake(audio: AudioState) {
+	const bufferSize = 4096;
+
+	function noise(e: AudioProcessingEvent) {
+		let lastOut = 0.0;
+		let output = e.outputBuffer.getChannelData(0);
+		for (let i = 0; i < bufferSize; i++) {
+			let white = Math.random() * 2 - 1;
+			output[i] = (lastOut + (0.02 * white)) / 1.02;
+			lastOut = output[i];
+		}
+	}
+
+	let lakeGains = audio.lakePanners.map(p => {
+		p.connect(audio.totalGain);
+
+		let filter = audio.context.createBiquadFilter();
+		filter.type = 'bandpass';
+		filter.frequency.value = 2500 + Math.random() * 1000;
+		filter.connect(p);
+
+		let gain = audio.context.createGain();
+		gain.connect(filter);
+
+		let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
+		node.onaudioprocess = noise;
+		node.connect(gain);
+
+		return gain;
+	});
+
+	function modulate() {
+		lakeGains.forEach(g => {
+			let t = audio.context.currentTime;
+			let peak = t + 2 * Math.random();
+			let end = peak + 4;
+			g.gain.linearRampToValueAtTime(Math.random() * LAKE_VOLUME + 0.1, peak);
+			g.gain.exponentialRampToValueAtTime(0.001, end);
+		});
+		setTimeout(modulate, (Math.random() * 2 + 9) * 1000);
+	};
+	modulate();
+}
+
 function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	let [frequency, start, end] = spec;
 
+	audio.organPanner.connect(audio.totalGain);
 	let gain = audio.context.createGain();
-	gain.connect(audio.totalGain);
+	gain.connect(audio.organPanner);
 
 	var filter = audio.context.createBiquadFilter();
 	filter.connect(gain);
@@ -212,6 +281,10 @@ export function playOrgan(audio: AudioState) {
 	['C#1,C#2,C#3', 4], ['D#1,D#2,D#3', 4],
 	['C1,C2,C3', 4], ['C#1,C#2,C#3', 4],
 	['A#0,A#1,A#2', 1]];
+
+	// HACK: play church a few times
+	// TODO: repeat ad infinitum
+	church = church.concat(church, church, church, church);
 
 	playScore(audio, church, 120, 4, 4);
 }
