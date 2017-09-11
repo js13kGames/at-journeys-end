@@ -1,4 +1,4 @@
-import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
+import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
 
 export interface Primitive {
 	center: XYZ
@@ -15,6 +15,10 @@ export interface Light extends Primitive {
 
 export interface FuelCan extends Primitive {
 	consume(): void
+}
+
+export interface Enemy extends Primitive {
+	update(c: Config): void
 }
 
 export function Cube(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
@@ -315,6 +319,141 @@ export function Player(): Primitive {
 	}
 }
 
+export function Enemy(xy: XYZ): Enemy {
+	let behavior: (c: Config)=>void
+	let moveToPlayer = false
+	let moving = false
+	let moveDur = 0
+	let moveDir = 0
+	let nextMoveTime = 0
+	let moveStartTime = 0
+	let fear = 0
+	let fearThreshold = 5
+
+	function inPlayerFOV(c: Config): boolean {
+		// angle from player to enemy
+		const dxy = XYMinusXY(xy, c.playerXY)
+		const a = Math.atan2(dxy.y, dxy.x)
+		const da = Math.abs(Math.PI - Math.abs(Math.abs(c.playerAngle - a) - Math.PI))
+		return da < 1.2
+	}
+
+	const parts = [
+		Cylinder(xy, 0.5, 30, "white")
+	]
+
+	function idle(c: Config): void {
+		const d = XYDistance(XYMinusXY(c.playerXY, xy))
+		if (d < 20) behavior = follow
+	}
+
+	function flee(c: Config): void {
+		console.log("fleeing")
+		if (fear > 0) fear -= .01
+		else behavior = idle
+
+		const ra = XYToRA(XYMinusXY(c.playerXY, xy))
+		const dra = RA(0.2, ra.a + Math.PI)
+		const dxy = RAToXYZ(dra)
+		xy.x += dxy.x
+		xy.y += dxy.y
+	}
+
+	function follow(c: Config): void {
+		const d = XYDistance(XYMinusXY(c.playerXY, xy))
+		const ra = XYToRA(XYMinusXY(c.playerXY, xy))
+
+		const xy5 = XYPlusXY(xy, RAToXYZ(RA(5, ra.a)))
+		const cxy = c.transform.xyz(XYZ(xy5.x, xy5.y))
+		c.lib.beginPath()
+		c.lib.arc(cxy.x, cxy.y, 1, 0, Math.PI * 2)
+		c.lib.globalCompositeOperation = "source-over"
+		c.lib.strokeStyle = "yellow"
+		c.lib.stroke()
+		const dxy = XY(0, 0)
+		const timer = c.now / 1000
+
+		// update moveToPlayer
+		let adjSpeed = (3 + (.75 - c.lanternIntensity) * 2) / 100
+		const inStrikingRange = d < 6 - c.lanternIntensity * 3
+		//console.log(d, 6 - c.lanternIntensity * 3)
+
+		if (d < 8 * c.lanternIntensity) {
+			fear += 1/60
+			if (!inStrikingRange) {
+				//console.log("\tBacking off")
+				const xyz = RAToXYZ(RA(1 * adjSpeed * (1 + fear / fearThreshold), ra.a + Math.PI))
+				dxy.x += xyz.x
+				dxy.y += xyz.y
+			}
+		} else if (fear > 0) fear -= 1/120
+
+		if (fear > fearThreshold) {
+			behavior = flee
+			moveToPlayer = false
+			moving = false
+		}
+
+		if (d < 9 * c.lanternIntensity && !inStrikingRange) moveToPlayer = false
+		if (d > 10 * c.lanternIntensity) moveToPlayer = true
+		if (d > 36) moveToPlayer = false
+		if (inStrikingRange) moveToPlayer = true
+		if (c.lanternIntensity < 0.2) moveToPlayer = true
+
+		//console.log("inStrikingRange:", inStrikingRange)
+		
+		if (moveToPlayer) {
+			//console.log("\t", timer, nextMoveTime)
+			if (timer > nextMoveTime) {
+				moving = true
+				moveStartTime = timer
+				moveDur = Math.random() * 2.5 + .5
+				nextMoveTime = timer + moveDur + (c.lanternIntensity + .5) * (inPlayerFOV ?
+					Math.pow(Math.random() * 32, 0.5) : Math.pow(Math.random(), 2))
+				moveDir = (inPlayerFOV ? Math.random() * 4 - 2 : Math.random() * 2.8 - 1.4)
+
+				if (d > 20 && d < 36) {
+					nextMoveTime = timer + moveDur
+					moveDir = Math.random() - .5
+				}
+
+				//console.log(moveStartTime - timer, moveDur, nextMoveTime - timer, moveDir / Math.PI * 180)
+			}
+
+			if (moving) {
+				if (timer < moveStartTime + moveDur) {
+					const curve = .5 - Math.abs((timer - moveStartTime) / moveDur - .5)
+					const xy = RAToXYZ(RA(curve * adjSpeed * 12, moveDir + ra.a))
+					dxy.x += xy.x
+					dxy.y += xy.y
+				}
+			}
+
+		}
+/*
+		if (ra.r > 10 * c.lanternIntensity) {
+			ra.r = 0.03
+			const newXY = XYPlusXY(xy, RAToXYZ(ra))
+			xy.x = newXY.x
+			xy.y = newXY.y
+		}
+*/
+
+		xy.x += dxy.x
+		xy.y += dxy.y
+	}
+
+	behavior = idle
+
+	return {
+		center: xy,
+		isTreeless: false,
+		isBarrier: false,
+		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
+		draw: (c: Config)=>parts.forEach(p=>p.draw(c)),
+		update: (c: Config)=>behavior(c)
+	}
+}
 
 function corners(xyz: XYZ, lw: LW, a: number): XYZ[] {
 	const ra = LWToRA(lw)

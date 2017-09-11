@@ -1,7 +1,7 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
-import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights } from './map'
+import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies } from './map'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
-import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, drawRain } from './primitives'
+import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, Enemy, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -27,12 +27,13 @@ function main() {
 		worldViewRadius: 37,
 		time: 0,
 		//playerXY: XY(-300, -160),
-		//playerXY: XY(0, -1),
+		playerXY: XY(0, -1),
 		//playerXY: XY(-26, -236),
-		playerXY: XY(63, -245),
+		//playerXY: XY(63, -245),
 		//playerXY: XY(-350, -260),
 		playerAngle: upAngle,
 		fuel: 100,
+		lanternIntensity: 1,
 		cameraXYZ: XYZ(0, 0, 20),
 		cameraAngle: upAngle,
 		transform: undefined,
@@ -61,8 +62,8 @@ function main() {
 		switch (key) {
 			case 65: turnSpeed = -0.025; break;			// A left
 			case 68: turnSpeed = 0.025; break;			// D right
-			case 87: walkSpeed = 0.35; break;			// W up
-			case 83: walkSpeed = -0.35; break;			// S down
+			case 87: walkSpeed = 0.07; break;			// W up
+			case 83: walkSpeed = -0.07; break;			// S down
 
 			case 73: config.worldViewRadius--; break;	// I zoom in
 			case 75: config.worldViewRadius++; break;	// K zoom out
@@ -110,6 +111,7 @@ function main() {
 
 	const lantern = Light(XYZ(0,0), config.worldViewRadius, 1, true)
 	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
+	const demons = enemies.map(a=>Enemy(XYZ(a[0], a[1])))
 
 	const primitives: Primitive[] = [
 		lantern,
@@ -119,6 +121,7 @@ function main() {
 				planeColors[a[5]], operations[a[5]], a[6]>1, a[6]!=2)),
 		...planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[3]*5, a[2]*5), a[4]+Math.PI/2)),
 		...cans,
+		...demons,
 		...cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
 		...cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
 		...fences.filter(a=>a[0] == 1).map((a: number[])=>Fence(a.slice(1)))
@@ -155,11 +158,15 @@ function main() {
 
 		// update player and lantern
 		config.playerAngle += turnSpeed
+		const pi2 = Math.PI * 2
+		if (config.playerAngle > pi2) config.playerAngle -= pi2
+		if (config.playerAngle < -pi2) config.playerAngle += pi2
 		config.playerXY = moveWithDeflection(config.playerXY, config.playerAngle, walkSpeed, 0.3, primitives)
-		config.fuel = Math.max(config.fuel - (config.frameMS / 1000) * 4.7, 0)
+		config.fuel = Math.max(config.fuel - (config.frameMS / 1000) * .7, 0)
+		config.lanternIntensity = Math.max((Math.pow(config.fuel, 0.5) + Math.pow(config.fuel, 1/3)) * .07, 0.1)
 		lantern.center.x = config.playerXY.x
 		lantern.center.y = config.playerXY.y
-		lantern.setIntensity(Math.max((Math.pow(config.fuel, 0.5) + Math.pow(config.fuel, 1/3)) * .07, 0.1))
+		lantern.setIntensity(config.lanternIntensity)
 
 		// update camera
 		/*
@@ -188,10 +195,14 @@ function main() {
 		// check for refueling
 		cans.forEach(c=>{
 			if (c.contains(config.playerXY, 0.5)) {
-				config.fuel = Math.min(config.fuel + 50, 100)
 				c.consume()
+				setTimeout(()=>config.fuel = Math.min(config.fuel + 50, 100), 400)
+				flameOfUdun(audioState)
 			}
 		})
+
+		// update enemies
+		demons.forEach(e=>e.update(config))
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / config.frameMS)

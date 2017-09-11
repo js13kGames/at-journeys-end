@@ -41,6 +41,7 @@ export interface Config {
 	playerXY: XY
 	playerAngle: number
 	fuel: number
+	lanternIntensity: number
 	cameraXYZ: XYZ
 	cameraAngle: number
 	transform: Transform
