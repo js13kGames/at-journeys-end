@@ -5,6 +5,7 @@ const ORGAN_VOLUME = 0.2;
 const WIND_VOLUME = 0.2;
 const FLAME_OF_UDUN_VOLUME = 0.6;
 const THUNDER_VOLUME = 0.5;
+const THUNDER_FILTER_FREQ = 180;
 const LAKE_VOLUME = 0.3;
 const STEP_VOLUME = 0.2;
 const BUFFER_SIZE = 4096;
@@ -23,8 +24,19 @@ export interface AudioState {
 	stepGain: GainNode;
 	stepFilter: BiquadFilterNode;
 	stepProcessorNode: ScriptProcessorNode;
+	flameGain: GainNode;
+	flameFilter: BiquadFilterNode;
+	flameProcessorNode: ScriptProcessorNode;
+	thunderGain: GainNode;
+	thunderFilter: BiquadFilterNode;
+	thunderProcessorNode: ScriptProcessorNode;
+	windGain: GainNode;
+	windFilter: BiquadFilterNode;
+	windProcessorNode: ScriptProcessorNode;
 }
 
+// The basic random noise generator was lifted from this helpful post:
+// https://noisehack.com/generate-noise-web-audio-api/
 function whiteNoise(e: AudioProcessingEvent) {
 	let lastOut = 0.0;
 	let output = e.outputBuffer.getChannelData(0);
@@ -61,11 +73,42 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 	stepFilter.connect(stepGain);
 	stepFilter.type = 'bandpass';
 	let stepProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+	stepProcessorNode.connect(stepFilter);
+
+	let flameGain = context.createGain();
+	flameGain.connect(totalGain);
+	let flameFilter = context.createBiquadFilter();
+	flameFilter.connect(flameGain);
+	flameFilter.type = 'lowpass';
+	flameFilter.frequency.value = 180;
+	let flameProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+	flameProcessorNode.connect(flameFilter);
+
+	let thunderGain = context.createGain();
+	thunderGain.connect(totalGain);
+	let thunderFilter = context.createBiquadFilter();
+	thunderFilter.connect(thunderGain);
+	thunderFilter.type = 'lowpass';
+	thunderFilter.frequency.value = 180;
+	let thunderProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+	thunderProcessorNode.connect(thunderFilter);
+
+	let windGain = context.createGain();
+	windGain.connect(totalGain);
+	let windFilter = context.createBiquadFilter();
+	windFilter.connect(windGain);
+	windFilter.type = 'highpass';
+	windFilter.frequency.value = 4000
+	let windProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+	windProcessorNode.connect(windFilter);
 
 	return {
 		context, totalGain, organWave,
 		listener, organPanner, lakePanners,
-		stepGain, stepFilter, stepProcessorNode
+		stepGain, stepFilter, stepProcessorNode,
+		flameGain, flameFilter, flameProcessorNode,
+		thunderGain, thunderFilter, thunderProcessorNode,
+		windGain, windFilter, windProcessorNode
 	};
 }
 
@@ -78,33 +121,18 @@ export function moveListener(audio: AudioState, playerPosition: XY, playerDirect
 	audio.listener.setOrientation(playerDirection.x, playerDirection.y, 0, 0, 1, 0);
 }
 
-// The basic random noise generator was lifted from this helpful post:
-// https://noisehack.com/generate-noise-web-audio-api/
 export function wind(audio: AudioState) {
-	const bufferSize = 4096;
-
-	let gain = audio.context.createGain();
-	gain.connect(audio.totalGain);
-	var filter = audio.context.createBiquadFilter();
-	filter.connect(gain);
-	filter.type = 'highpass';
-	filter.frequency.value = 4000
-
 	let windModulation = new Float32Array(10);
 	function modulateWind() {
 		let last = windModulation[9];
 		windModulation = windModulation.map(_ => WIND_VOLUME * ((Math.random() + Math.random()) - 0.75));
 		windModulation[0] = last || windModulation[0];
-		gain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
+		audio.windGain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);
 	};
 	modulateWind();
 
-	let lastOut = 0.0;
-	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-	node.onaudioprocess = whiteNoise;
-
-	node.connect(filter);
+	audio.windProcessorNode.onaudioprocess = whiteNoise;
 }
 
 export function stepSound(audio: AudioState) {
@@ -118,69 +146,38 @@ export function stepSound(audio: AudioState) {
 	audio.stepGain.gain.setValueAtTime(0, t2);
 
 	audio.stepProcessorNode.onaudioprocess = whiteNoise;
-	audio.stepProcessorNode.connect(audio.stepFilter);
 }
 
 export function flameOfUdun(audio: AudioState) {
-	const bufferSize = 4096;
+	audio.flameGain.gain.setValueAtTime(0.01, audio.context.currentTime);
+	audio.flameGain.gain.exponentialRampToValueAtTime(FLAME_OF_UDUN_VOLUME, audio.context.currentTime + 0.4);
+	audio.flameGain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
+	audio.flameGain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
 
-	let gain = audio.context.createGain();
-	gain.connect(audio.totalGain);
-	gain.gain.setValueAtTime(0.01, audio.context.currentTime);
-	gain.gain.exponentialRampToValueAtTime(FLAME_OF_UDUN_VOLUME, audio.context.currentTime + 0.4);
-	gain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
-	gain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
-
-	var filter = audio.context.createBiquadFilter();
-	filter.connect(gain);
-	filter.type = 'lowpass';
-	filter.frequency.value = 180;
-
-	let lastOut = 0.0;
-	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-	node.onaudioprocess = whiteNoise;
-
-	node.connect(filter);
+	audio.flameProcessorNode.onaudioprocess = whiteNoise;
 }
 
 export function thunder(audio: AudioState) {
-	const bufferSize = 4096;
-
-	let gain = audio.context.createGain();
-	gain.connect(audio.totalGain);
-	gain.gain.setValueAtTime(0.5, audio.context.currentTime);
-
-	var filter = audio.context.createBiquadFilter();
-	filter.connect(gain);
-	filter.type = 'lowpass';
-	filter.frequency.value = 180;
-
 	function modulate() {
 		let t = audio.context.currentTime;
-		gain.gain.setValueAtTime(0.7 + Math.random() * 0.2, t);
+		audio.thunderGain.gain.setValueAtTime(0.7 + Math.random() * 0.2, t);
 		t += 0.2;
 		for (let i = 0; i < Math.random() * 6 + 2; i++) {
 			let a = Math.random();
-			gain.gain.linearRampToValueAtTime(a * THUNDER_VOLUME, t);
-			filter.frequency.value += (Math.random() * 200 - 50);
+			audio.thunderGain.gain.linearRampToValueAtTime(a * THUNDER_VOLUME, t);
+			audio.thunderFilter.frequency.value = THUNDER_FILTER_FREQ + (Math.random() * 100 - 50);
 			t += 0.2;
 		}
-		gain.gain.linearRampToValueAtTime(0.8 * THUNDER_VOLUME, t);
-		gain.gain.linearRampToValueAtTime(0.001, t + 5);
+		audio.thunderGain.gain.linearRampToValueAtTime(0.8 * THUNDER_VOLUME, t);
+		audio.thunderGain.gain.linearRampToValueAtTime(0.001, t + 5);
 		setTimeout(modulate, (Math.random() * 10 + 6) * 1000);
 	};
 	modulate();
 
-	let lastOut = 0.0;
-	let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
-	node.onaudioprocess = whiteNoise;
-
-	node.connect(filter);
+	audio.thunderProcessorNode.onaudioprocess = whiteNoise;
 }
 
 export function lake(audio: AudioState) {
-	const bufferSize = 4096;
-
 	let lakeGains = audio.lakePanners.map(p => {
 		p.connect(audio.totalGain);
 
@@ -192,7 +189,7 @@ export function lake(audio: AudioState) {
 		let gain = audio.context.createGain();
 		gain.connect(filter);
 
-		let node = audio.context.createScriptProcessor(bufferSize, 1, 1);
+		let node = audio.context.createScriptProcessor(BUFFER_SIZE, 1, 1);
 		node.onaudioprocess = whiteNoise;
 		node.connect(gain);
 
@@ -219,7 +216,7 @@ function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	let gain = audio.context.createGain();
 	gain.connect(audio.organPanner);
 
-	var filter = audio.context.createBiquadFilter();
+	let filter = audio.context.createBiquadFilter();
 	filter.connect(gain);
 	filter.frequency.value = 500;
 	filter.type = 'allpass';
