@@ -272,14 +272,6 @@ function playScore(audio: AudioState, score: NoteSpec[], bpm: number, bpb: numbe
 }
 
 export function playOrgan(audio: AudioState) {
-	let fugue: NoteSpec[] = [['D3,D2,D4', 2], ['A3,A2,A4', 2], ['F3,F2,F4', 2], ['D3,D2,D4', 2], ['C#3,C#2,C#4', 2],
-	['D3,D2,D4', 4], ['E3,E2,E4', 4], ['F3,F2,F4', 2], ['F3,F2,F4', 4], ['G3,G2,G4', 4],
-	['F3,F2,F4', 4], ['E3,E2,E4', 4], ['D3,D2,D4', 4], ['D0', 4],
-	['A3,A4', 1], ['A#3,A#4', 1],
-	['G3,G4', 1], ['A3,A4', 1],
-	['F3,F4', 1], ['G3,G4', 1],
-	['F1,F2,F3,F4', 2], ['E1,E2,E3,E4', 2], ['D1,D2,D3,D4', 1]];
-
 	let church: NoteSpec[] = [['C#1,C#2,C#3', 1], ['C#1,C#2,C#3', 4], ['C1,C2,C3', 1],
 	['C#1,C#2,C#3', 1], ['C#1,C#2,C#3', 4], ['C1,C2,C3', 1],
 	['C#1,C#2,C#3', 1], ['C#1,C#2,C#3', 4], ['D#1,D#2,D#3', 1],
