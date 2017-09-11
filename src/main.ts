@@ -1,5 +1,5 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
-import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies } from './map'
+import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, sounds } from './map'
 import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';
 import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, Enemy, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
@@ -43,7 +43,7 @@ function main() {
 	// TODO: assign locations based on 'sounds' array from 'map' module
 	const audioState = initSound(config.playerXY,
 		XY(32.75, -22.5),
-		[XY(-25, -5), XY(30, -9), XY(12, -10), XY(-9, -12)])
+		sounds.filter(s => s[2] === 5).map(([x, y, _]) => XY(x, y)));
 	wind(audioState)
 	lake(audioState)
 	playOrgan(audioState)
