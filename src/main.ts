@@ -88,10 +88,6 @@ function main() {
 		}
 	}
 
-	function move(from: XY, angle: number, distance: number): XY {
-		return XY(from.x + Math.cos(angle) * distance, from.y + Math.sin(angle) * distance)
-	}
-
 	window.addEventListener("resize", resize)
 	window.addEventListener("keydown", e => keyDown(e.keyCode))
 	window.addEventListener("keyup", e => keyUp(e.keyCode))
@@ -112,6 +108,7 @@ function main() {
 	const lantern = Light(XYZ(0,0), config.worldViewRadius, 1, true)
 	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
 	const demons = enemies.map(a=>Enemy(XYZ(a[0], a[1])))
+	demons.push(Enemy(XYZ(-10, -10)))
 
 	const primitives: Primitive[] = [
 		lantern,
@@ -202,7 +199,7 @@ function main() {
 		})
 
 		// update enemies
-		demons.forEach(e=>e.update(config))
+		demons.forEach(e=>e.update(config, primitives))
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / config.frameMS)

@@ -1,4 +1,5 @@
 import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
+import { moveWithDeflection } from './movement'
 
 export interface Primitive {
 	center: XYZ
@@ -18,7 +19,7 @@ export interface FuelCan extends Primitive {
 }
 
 export interface Enemy extends Primitive {
-	update(c: Config): void
+	update(c: Config, avoid: Primitive[]): void
 }
 
 export function Cube(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
@@ -320,7 +321,9 @@ export function Player(): Primitive {
 }
 
 export function Enemy(xy: XYZ): Enemy {
-	let behavior: (c: Config)=>void
+	const body = Cylinder(xy, 0.7, 30, "#000")
+
+	let behavior: (c: Config, avoid: Primitive[])=>void
 	let moveToPlayer = false
 	let moving = false
 	let moveDur = 0
@@ -330,58 +333,51 @@ export function Enemy(xy: XYZ): Enemy {
 	let fear = 0
 	let fearThreshold = 5
 
+	// support function
 	function inPlayerFOV(c: Config): boolean {
-		// angle from player to enemy
 		const dxy = XYMinusXY(xy, c.playerXY)
 		const a = Math.atan2(dxy.y, dxy.x)
 		const da = Math.abs(Math.PI - Math.abs(Math.abs(c.playerAngle - a) - Math.PI))
 		return da < 1.2
 	}
 
-	const parts = [
-		Cylinder(xy, 0.5, 30, "white")
-	]
+	// support function
+	function move(dxy: XY, avoid: Primitive[]) {
+		const ra = XYToRA(dxy)
+		const newXY = moveWithDeflection(xy, ra.a, ra.r, 0.7, avoid)
+		xy.x = newXY.x
+		xy.y = newXY.y
+	}
 
-	function idle(c: Config): void {
+	// behavior
+	function idle(c: Config, avoid: Primitive[]): void {
 		const d = XYDistance(XYMinusXY(c.playerXY, xy))
 		if (d < 20) behavior = follow
 	}
 
-	function flee(c: Config): void {
-		console.log("fleeing")
+	// behavior
+	function flee(c: Config, avoid: Primitive[]): void {
 		if (fear > 0) fear -= .01
 		else behavior = idle
 
 		const ra = XYToRA(XYMinusXY(c.playerXY, xy))
-		const dra = RA(0.2, ra.a + Math.PI)
-		const dxy = RAToXYZ(dra)
-		xy.x += dxy.x
-		xy.y += dxy.y
+		move(RAToXYZ(RA(0.2, ra.a + Math.PI)), avoid)
 	}
 
-	function follow(c: Config): void {
+	// behavior
+	function follow(c: Config, avoid: Primitive[]): void {
 		const d = XYDistance(XYMinusXY(c.playerXY, xy))
 		const ra = XYToRA(XYMinusXY(c.playerXY, xy))
-
-		const xy5 = XYPlusXY(xy, RAToXYZ(RA(5, ra.a)))
-		const cxy = c.transform.xyz(XYZ(xy5.x, xy5.y))
-		c.lib.beginPath()
-		c.lib.arc(cxy.x, cxy.y, 1, 0, Math.PI * 2)
-		c.lib.globalCompositeOperation = "source-over"
-		c.lib.strokeStyle = "yellow"
-		c.lib.stroke()
 		const dxy = XY(0, 0)
 		const timer = c.now / 1000
 
 		// update moveToPlayer
 		let adjSpeed = (3 + (.75 - c.lanternIntensity) * 2) / 100
 		const inStrikingRange = d < 6 - c.lanternIntensity * 3
-		//console.log(d, 6 - c.lanternIntensity * 3)
 
 		if (d < 8 * c.lanternIntensity) {
 			fear += 1/60
 			if (!inStrikingRange) {
-				//console.log("\tBacking off")
 				const xyz = RAToXYZ(RA(1 * adjSpeed * (1 + fear / fearThreshold), ra.a + Math.PI))
 				dxy.x += xyz.x
 				dxy.y += xyz.y
@@ -400,10 +396,7 @@ export function Enemy(xy: XYZ): Enemy {
 		if (inStrikingRange) moveToPlayer = true
 		if (c.lanternIntensity < 0.2) moveToPlayer = true
 
-		//console.log("inStrikingRange:", inStrikingRange)
-		
 		if (moveToPlayer) {
-			//console.log("\t", timer, nextMoveTime)
 			if (timer > nextMoveTime) {
 				moving = true
 				moveStartTime = timer
@@ -416,8 +409,6 @@ export function Enemy(xy: XYZ): Enemy {
 					nextMoveTime = timer + moveDur
 					moveDir = Math.random() - .5
 				}
-
-				//console.log(moveStartTime - timer, moveDur, nextMoveTime - timer, moveDir / Math.PI * 180)
 			}
 
 			if (moving) {
@@ -428,30 +419,42 @@ export function Enemy(xy: XYZ): Enemy {
 					dxy.y += xy.y
 				}
 			}
-
 		}
-/*
-		if (ra.r > 10 * c.lanternIntensity) {
-			ra.r = 0.03
-			const newXY = XYPlusXY(xy, RAToXYZ(ra))
-			xy.x = newXY.x
-			xy.y = newXY.y
-		}
-*/
 
-		xy.x += dxy.x
-		xy.y += dxy.y
+		move(dxy, avoid)
 	}
 
 	behavior = idle
 
 	return {
 		center: xy,
-		isTreeless: false,
+		isTreeless: true,
 		isBarrier: false,
-		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
-		draw: (c: Config)=>parts.forEach(p=>p.draw(c)),
-		update: (c: Config)=>behavior(c)
+		contains: (wp: XY, pad: number)=>body.contains(wp, pad),
+		draw: (c: Config)=>{
+			body.draw(c)
+
+			// eye color
+			const ra = XYToRA(XYMinusXY(c.playerXY, xy))
+			const d = ra.r
+			const normalizedRed = c.lanternIntensity > .2 ? ((20 - d) / 25 * c.lanternIntensity + .2) : ((5 - d) / 8)
+			const red = Math.round(Math.max(Math.min(normalizedRed, 1), 0) * 255)
+
+			// draw the eyes
+			const wp1 = XYZPlusXYZ(xy, RAToXYZ(RA(0.40, ra.a + 1)))
+			const wp2 = XYZPlusXYZ(xy, RAToXYZ(RA(0.40, ra.a - 1)))
+			const cp1 = c.transform.xyz(wp1)
+			const cp2 = c.transform.xyz(wp2)
+			c.lib.beginPath()
+			c.lib.moveTo(cp1.x, cp1.y)
+			c.lib.arc(cp1.x, cp1.y, 2.5, 0, Math.PI * 2)	// eyeball
+			c.lib.moveTo(cp2.x, cp2.y)
+			c.lib.arc(cp2.x, cp2.y, 2.5, 0, Math.PI * 2)	// eyeball
+			c.lib.globalCompositeOperation = "source-over"
+			c.lib.fillStyle = "rgba(" + red + ",0,0,1)"
+			c.lib.fill()
+		},
+		update: (c: Config, avoid: Primitive[])=>behavior(c, avoid)
 	}
 }
 
