@@ -54,6 +54,7 @@ function main() {
 
 	let walkSpeed = 0
 	let turnSpeed = 0
+	let showGrid = false
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -62,16 +63,16 @@ function main() {
 			case 87: walkSpeed = 0.07; break;			// W up
 			case 83: walkSpeed = -0.07; break;			// S down
 
-			case 73: config.worldViewRadius--; break;	// I zoom in
-			case 75: config.worldViewRadius++; break;	// K zoom out
+			case 73: config.worldViewRadius++; break;	// I increase viewable area
+			case 75: config.worldViewRadius--; break;	// K decrease viewable area
 			case 81: toggleSound(audioState); break;	// T toggle sound
 			case 79: playOrgan(audioState); break;		// O organ
 			case 89: config.cameraXYZ.z++; break;		// Y camera up
 			case 72: config.cameraXYZ.z--; break;		// H camera down
-			case 70: flameOfUdun(audioState); break;        // F flame
-			case 84: thunder(audioState); break;            // T thunder
-			//case 48: lantern.setIntensity(0); break;	// 0 lantern off
-			//case 49: lantern.setIntensity(1); break;	// 1 lantern on
+			case 70: flameOfUdun(audioState); break;    // F flame
+			case 84: thunder(audioState); break;        // T thunder
+			case 48: showGrid = false; break;			// 0
+			case 49: showGrid = true; break;			// 1
 			default: console.log(key)
 		}
 	}
@@ -121,22 +122,6 @@ function main() {
 		return parts
 	}, [] as Primitive[])
 
-/*
-	const primitives: Primitive[] = [
-		lantern,
-		...otherLights,
-		player, 
-		...treelessPlanes,
-		...basicPlanes,
-		...roadPlanes,
-		...cans,
-		...demons,
-		...basicCylinders,
-		...basicBlocks,
-		...fenceBlocks
-	]
-	*/
-
 	// tree fences need to know where trees can't be placed
 	const avoid: Primitive[] = [
 		...treelessPlanes,
@@ -164,7 +149,6 @@ function main() {
 			if (!avoid.some(p=>p.isTreeless && p.contains(xyz, r))) randomTrees.push(Cylinder(xyz, r, 30, null))
 		}
 	}
-	//primitives.push(...randomTrees)
 
 	const tiles = createTiles([
 		...basicCylinders,
@@ -229,9 +213,9 @@ function main() {
 		config.transform = getTransform(config)
 
 		// draw primitives
+		showGrid && tiles.forEach(t=>t.outline(config))
 		config.lib.fillStyle = "black"
 		primitives.forEach(p=>p.draw(config))
-		tiles.forEach(t=>t.outline(config))
 
 		// draw rain
 		//rains.forEach(rain=>drawRain(rain, config))

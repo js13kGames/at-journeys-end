@@ -79,7 +79,7 @@ export function Tile(xy: XYZ, size: number): Tile {
 		},
 		outline: (c: Config)=>{
 			const inRange = XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r
-			const color = inRange ? "rgba(255,255,255,0.1)" : "red"
+			const color = inRange ? "#008" : "red"
 			const cps = c.transform.xyzs([minXY, XYZ(minXY.x, maxXY.y), maxXY, XYZ(maxXY.x, minXY.y)])
 			c.lib.beginPath()
 			c.lib.moveTo(cps[0].x, cps[0].y)
