@@ -1,7 +1,7 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, sounds } from './map'
 import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';
-import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, Enemy, drawRain } from './primitives'
+import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Road, Light, Rain, Player, Enemy, createTiles, Tile, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 const TIME_UNITS_PER_STEP = 30
@@ -25,15 +25,12 @@ function main() {
 		canvasCenter: undefined,
 		worldViewRadius: 37,
 		time: 0,
-		//playerXY: XY(-300, -160),
-		playerXY: XY(0, -1),
-		//playerXY: XY(-26, -236),
-		//playerXY: XY(63, -245),
-		//playerXY: XY(-350, -260),
+		playerXY: XY(0, -9),
+		//playerXY: XY(72, -238),
 		playerAngle: upAngle,
 		fuel: 100,
 		lanternIntensity: 1,
-		cameraXYZ: XYZ(0, 0, 20),
+		cameraXYZ: XYZ(0, 0, 25),
 		cameraAngle: upAngle,
 		transform: undefined,
 		now: new Date().getTime(),
@@ -64,6 +61,7 @@ function main() {
 
 	let walkSpeed = 0
 	let turnSpeed = 0
+	let showGrid = false
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -72,16 +70,16 @@ function main() {
 			case 87: walkSpeed = 0.07; break;			// W up
 			case 83: walkSpeed = -0.07; break;			// S down
 
-			case 73: config.worldViewRadius--; break;	// I zoom in
-			case 75: config.worldViewRadius++; break;	// K zoom out
+			case 73: config.worldViewRadius++; break;	// I increase viewable area
+			case 75: config.worldViewRadius--; break;	// K decrease viewable area
 			case 81: toggleSound(audioState); break;	// T toggle sound
 			case 79: playOrgan(audioState); break;		// O organ
 			case 89: config.cameraXYZ.z++; break;		// Y camera up
 			case 72: config.cameraXYZ.z--; break;		// H camera down
-			case 70: flameOfUdun(audioState); break;        // F flame
-			case 84: thunder(audioState); break;            // T thunder
-			case 48: lantern.setIntensity(0); break;	// 0 lantern off
-			case 49: lantern.setIntensity(1); break;	// 1 lantern on
+			case 70: flameOfUdun(audioState); break;    // F flame
+			case 84: thunder(audioState); break;        // T thunder
+			case 48: showGrid = false; break;			// 0
+			case 49: showGrid = true; break;			// 1
 			default: console.log(key)
 		}
 	}
@@ -93,10 +91,6 @@ function main() {
 			case 87: walkSpeed = 0; break;	// W up
 			case 83: walkSpeed = 0; break;	// S down
 		}
-	}
-
-	function move(from: XY, angle: number, distance: number): XY {
-		return XY(from.x + Math.cos(angle) * distance, from.y + Math.sin(angle) * distance)
 	}
 
 	window.addEventListener("resize", resize)
@@ -116,44 +110,75 @@ function main() {
 		"multiply"
 	]
 
+	// primitives
+	const player = Player()
 	const lantern = Light(XYZ(0,0), config.worldViewRadius, 1, true)
+	const otherLights = lights.map(a=>Light(XYZ(a[0], -a[1]), a[2], a[3]))
+	const treelessPlanes = noTreeZones.map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4],
+		null, null, false, true))
+	const basicPlanes = planes.filter(a=>a[5] != 2).map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
+		planeColors[a[5]], operations[a[5]], a[6]>1, a[6]!=2))
+	const roadPlanes = planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[2]*5, a[3]*5), a[4]))
 	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
 	const demons = enemies.map(a=>Enemy(XYZ(a[0], a[1])))
+	demons.push(Enemy(XYZ(-10, -10)))
+	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
+	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6]))
+	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
+		parts.push(...(a[0] == 1 ? RailFence(a.slice(1)) : IronFence(a.slice(1)))); return parts }, [] as Primitive[])
 
-	const primitives: Primitive[] = [
-		lantern,
-		...lights.map(a=>Light(XYZ(a[0], -a[1]), a[2], a[3])),
-		...noTreeZones.map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4], null, null, false, true)),
-		...planes.filter(a=>a[5] != 2).map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
-				planeColors[a[5]], operations[a[5]], a[6]>1, a[6]!=2)),
-		...planes.filter(a=>a[5] == 2).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[3]*5, a[2]*5), a[4]+Math.PI/2)),
+	// tree fences need to know where trees can't be placed
+	const avoid: Primitive[] = [
+		...treelessPlanes,
+		...basicPlanes,
+		...roadPlanes,
 		...cans,
 		...demons,
-		...cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null)),
-		...cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null)),
-		...fences.filter(a=>a[0] == 1).map((a: number[])=>Fence(a.slice(1)))
+		...basicCylinders,
+		...basicBlocks,
+		...fenceBlocks
 	]
-
-	primitives.push(
-		...fences.filter(a=>a[0] == 2).map((a: number[])=>TreeFence(a.slice(1), primitives)),
-		Player()
-	)
+	const treeFences = fences.filter(a=>a[0] == 2).reduce((trees: Primitive[], a: number[])=>{
+		trees.push(...TreeFence(a.slice(1), avoid))
+		return trees
+	}, [] as Primitive[])
 
 	// generate trees by dividing the map into zones and putting one tree in each zone
-	const trees = []
+	const randomTrees = []
 	const zoneSize = 5
 	const rand = (n: number, r: number)=>n + Math.random() * (zoneSize - r * 2) + r
 	for (let x = -420; x < 180; x += zoneSize) {
 		for (let y = -400; y < 0; y += zoneSize) {
 			const r = Math.random() / 2 + 0.3
 			const xyz = XYZ(rand(x, r), rand(y, r), 0)
-			if (!primitives.some(p=>p.isTreeless && p.contains(xyz, r))) trees.push(Cylinder(xyz, r, 30, null))
+			if (!avoid.some(p=>p.preventsTreeAt(xyz, r))) randomTrees.push(Cylinder(xyz, r, 30, null))
 		}
 	}
-	primitives.push(...trees)
 
+	const tiles = createTiles([
+		...basicCylinders,
+		...basicBlocks,
+		...fenceBlocks,
+		...treeFences,
+		...randomTrees
+	])
+
+	const primitives: Primitive[] = [
+		lantern,
+		...otherLights,
+		player,
+		...treelessPlanes,
+		...basicPlanes,
+		...roadPlanes,
+		...cans,
+		...demons,
+		...tiles,
+	]
+
+/*
 	const rains: XYZ[] = []
 	for (let i = 0; i < 100; i++) rains.push(Rain(config))
+*/
 
 	function draw() {
 
@@ -199,6 +224,7 @@ function main() {
 		config.transform = getTransform(config)
 
 		// draw primitives
+		showGrid && tiles.forEach(t=>t.outline(config))
 		config.lib.fillStyle = "black"
 		primitives.forEach(p=>p.draw(config))
 
@@ -215,7 +241,16 @@ function main() {
 		})
 
 		// update enemies
-		demons.forEach(e=>e.update(config))
+		demons.forEach(e=>e.update(config, primitives))
+
+		const p1 = config.cameraXYZ
+		const p2 = XYZ(p1.x + config.worldViewRadius, p1.y)
+		const cps = config.transform.xyzs([p1, p2])
+		const r = distance(cps[0].x - cps[1].x, cps[0].y - cps[1].y)
+		config.lib.beginPath()
+		config.lib.arc(cps[0].x, cps[0].y, r, 0, Math.PI*2)
+		config.lib.strokeStyle = "green"
+		config.lib.stroke()
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / config.frameMS)

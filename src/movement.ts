@@ -21,7 +21,7 @@ export function moveWithDeflection(from: XY, angle: number, distance: number, pa
 	const xys = deflections.map(da=>position(from, angle + da, distance * Math.cos(da*.8))) // slower at wider angles
 	primitives.forEach(p=>{
 		for (let i = xys.length - 1; i >= 0; i--) {
-			if (p.isBarrier && p.contains(xys[i], pad)) xys.splice(i, 1)
+			if (p.collidesWith(xys[i], pad)) xys.splice(i, 1)
 		}
 	})
 	return xys.length ? xys[0] : from

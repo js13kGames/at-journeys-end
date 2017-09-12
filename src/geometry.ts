@@ -108,8 +108,9 @@ export function XYPlusXY(a: XY, b: XY): XY {
 export function getTransform(c: Config): Transform {
 
 	// precalculate canvas center, canvas radius, and scale
-	const cx = c.canvasLW.l / 2
-	const cy = c.canvasLW.w *.65
+	const m = 0 // margin
+	const cx = c.canvasLW.l / 2 - m
+	const cy = c.canvasLW.w *.65 - m
 	const cr = distance(cx, cy)
 	const cScale = cr / c.worldViewRadius
 	const maxZ = c.cameraXYZ.z * .99
@@ -127,7 +128,7 @@ export function getTransform(c: Config): Transform {
 		const dy = wy - c.cameraXYZ.y
 		const a = Math.atan2(dy, dx) - c.cameraAngle + 3 * Math.PI / 2
 		const d = distance(dx, dy) * cScale
-		return XY(cx + d * Math.cos(a), cy + d * Math.sin(a))
+		return XY(m+cx + d * Math.cos(a), m+cy + d * Math.sin(a))
 	}
 
 	return {
