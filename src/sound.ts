@@ -38,9 +38,7 @@ export interface AudioState {
 	listener: AudioListener;
 	organPanner: PannerNode;
 	lakePanners: PannerNode[];
-	stepGain: GainNode;
-	stepFilter: BiquadFilterNode;
-	stepProcessorNode: ScriptProcessorNode;
+	step: AudioPipeline;
 	flame: AudioPipeline;
 	thunderGain: GainNode;
 	thunderFilter: BiquadFilterNode;
@@ -81,13 +79,8 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 		return p
 	});
 
-	let stepGain = context.createGain();
-	stepGain.connect(totalGain);
-	let stepFilter = context.createBiquadFilter();
-	stepFilter.connect(stepGain);
-	stepFilter.type = 'bandpass';
-	let stepProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
-	stepProcessorNode.connect(stepFilter);
+	// TODO: what is the correct frequency?
+	let step = new AudioPipeline(context, totalGain, 'bandpass', 666)
 
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
 
@@ -112,7 +105,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 	return {
 		context, totalGain, organWave,
 		listener, organPanner, lakePanners,
-		stepGain, stepFilter, stepProcessorNode,
+		step,
 		flame,
 		thunderGain, thunderFilter, thunderProcessorNode,
 		windGain, windFilter, windProcessorNode
@@ -143,16 +136,16 @@ export function wind(audio: AudioState) {
 }
 
 export function stepSound(audio: AudioState) {
-	audio.stepFilter.frequency.value = 1500 + Math.random() * 1000;
+	audio.step.filter.frequency.value = 1500 + Math.random() * 1000;
 
 	let t0 = audio.context.currentTime + 0.05;
 	let t1 = t0 + 0.05 + 0.1 * Math.random();
 	let t2 = t1 + 0.05 + 0.1 * Math.random();
-	audio.stepGain.gain.linearRampToValueAtTime(STEP_VOLUME + Math.random() * STEP_VOLUME, t0);
-	audio.stepGain.gain.linearRampToValueAtTime(0.001, t1);
-	audio.stepGain.gain.setValueAtTime(0, t2);
+	audio.step.gain.gain.linearRampToValueAtTime(STEP_VOLUME + Math.random() * STEP_VOLUME, t0);
+	audio.step.gain.gain.linearRampToValueAtTime(0.001, t1);
+	audio.step.gain.gain.setValueAtTime(0, t2);
 
-	audio.stepProcessorNode.onaudioprocess = whiteNoise;
+	audio.step.processor.onaudioprocess = whiteNoise;
 }
 
 export function flameOfUdun(audio: AudioState) {
