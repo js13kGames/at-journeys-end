@@ -24,7 +24,7 @@ export interface FuelCan extends Primitive {
 	consume(): void
 }
 
-export interface Enemy extends Primitive {
+export interface NPC extends Primitive {
 	update(c: Config, avoid: Primitive[]): void
 }
 
@@ -219,6 +219,12 @@ export function Plane(xyz: XYZ, lw: LW, a: number, color: string, operation: str
 }
 
 export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
+
+	// swap l and w
+	if (lw.w > lw.l) {
+		lw = LW(lw.w, lw.l)
+		a += Math.PI / 2
+	}
 	const parts: Primitive[] = [Plane(XYZ(xyz.x, xyz.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
 	const lineLength = 1.0
 	const lineWidth = 0.15
@@ -244,7 +250,8 @@ export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
 	}
 }
 
-export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
+export function Light(xyz: XYZ, wr: number, b: number, color = [255, 255, 255], flicker=false): Light {
+	const rgba = "rgba(" + color[0] + "," + color[1] + "," + color[2] + ","
 	return {
 		center: xyz,
 		maxSize: wr,
@@ -272,7 +279,7 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 				let x = lightScale * Math.pow(i / steps, 2) + 1
 				let alpha = intensity / (x * x)
 				if (alpha < 0.01) alpha = 0
-				g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
+				g.addColorStop((x - 1) / lightScale, rgba + alpha + ")")
 			}
 			c.lib.fillStyle = g
 			c.lib.globalCompositeOperation = "source-over"
@@ -332,10 +339,6 @@ export function RailFence(a: number[]): Primitive[] {
 }
 
 export function IronFence(a: number[]): Primitive[] {
-	// post: 2x2x2, 1.6x1.6x8, 2x2x1 at 8
-	// v-bars: .2x.2x9
-	// h-bars: at 2, at 7
-	// spacing: 1
 	const parts: Primitive[] = []
 	const post = (xy: XY, a: number)=>parts.push(...[
 		Cube(XYZ(xy.x, xy.y), LWH(1, 1, 2), a),
@@ -346,7 +349,7 @@ export function IronFence(a: number[]): Primitive[] {
 	const hBar = (p1: XY, p2: XY, h: number, ra: RA)=>
 		parts.push(Cube(XYZ((p1.x+p2.x)/2, (p1.y+p2.y)/2, h), LWH(ra.r/2, .1, .1), ra.a))
 
-	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]-1), XY(a[i+2], -a[i + 3]-1))
+	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]), XY(a[i+2], -a[i + 3]))
 
 	function segment(p1: XY, p2: XY) {
 		const ra = XYsToRA(p1, p2)
@@ -382,16 +385,18 @@ export function TreeFence(a: number[], avoid: Primitive[]): Primitive[] {
 			const angle = Math.atan2(p2.y-p.y, p2.x-p.x)
 			const r = Math.min(randomR(), d/2)
 			const gap = maxGap - Math.random() * maxGap
-			const ra = RA(r1 + gap + r, angle + Math.random() * 1.4-.7)
+			const ra = RA(r1 + gap + r, angle + Math.random() * 1.6-.8)
 			p = XYPlusXY(p, RAToXYZ(ra))
-			r1 = r
-			trees.push(Cylinder(XYZ(p.x, p.y, 0), r, randomH()))
+			const xyz3 = XYZ(p.x, p.y, 0)
+			if (!avoid.some(p=>p.preventsTreeAt(xyz3, r))) trees.push(Cylinder(xyz3, r, randomH()))
 
 			// add a random tree at a right angle
 			const xy = XYPlusXY(p, RAToXYZ(RA(2 + Math.random() * 2, ra.a + Math.PI / 2 * (i % 2 ? 1 : -1))))
 			const xyz = XYZ(xy.x, xy.y, 0)
-			const r3 = randomR()-.1
-			if (!avoid.some(p=>p.preventsTreeAt(xyz, r3))) trees.push(Cylinder(xyz, r3, randomH()))
+			const r4 = randomR()-.1
+			if (!avoid.some(p=>p.preventsTreeAt(xyz, 43))) trees.push(Cylinder(xyz, 43, randomH()))
+
+			r1 = r
 		}
 	}
 
@@ -434,7 +439,7 @@ export function Player(): Primitive {
 	}
 }
 
-export function Enemy(xy: XYZ): Enemy {
+export function Enemy(xy: XYZ): NPC {
 	const body = Cylinder(xy, 0.7, 30, "#000")
 
 	let behavior: (c: Config, avoid: Primitive[])=>void
@@ -570,6 +575,106 @@ export function Enemy(xy: XYZ): Enemy {
 			c.lib.globalCompositeOperation = "source-over"
 			c.lib.fillStyle = "rgba(" + red + ",0,0,1)"
 			c.lib.fill()
+		},
+		update: (c: Config, avoid: Primitive[])=>behavior(c, avoid)
+	}
+}
+
+export function Spirit(xy: XYZ): NPC {
+	const light = Light(xy, 15, 1, [122, 194, 255])
+	const attachDistance = 6
+    const speed = 1
+    const targetDistance = 4
+    const lightBaseIntensity = 1.6
+	const size = .3
+	const centers: XYZ[] = []
+	const lefts: XYZ[] = []
+	const rights: XYZ[] = []
+
+    let following = false
+    let moveTowardsTarget = false
+
+	function sine(t: number) {
+        return (.578 - (Math.sin(t) + Math.sin(2.2*t+5.52) + Math.sin(2.9*t+0.93) + Math.sin(4.6*t+8.94))) / 4
+    }
+
+	function behavior(c: Config, _: Primitive[]): void {
+		const d = XYDistance(XYMinusXY(c.playerXY, xy))
+
+        // start following
+        if (!following && d < attachDistance) following = true
+
+        // decide when to move
+        if (following && d > targetDistance) moveTowardsTarget = true
+
+        // float around a little
+        const t = c.now / 1000 * 0.8
+        if (following) {
+			xy.x += sine(t) / 20
+			xy.y += sine(t + 16) / 20
+		}
+
+        //move towards target
+        const adjSpeed = speed / 50 + Math.max(Math.min(d - targetDistance, 15), 0) / 20;
+
+        if (following && moveTowardsTarget) {
+            if (c.lanternIntensity <= 0.1) {
+				moveTowardsTarget = false
+				following = false
+				return
+			} else if (d < targetDistance) {
+				moveTowardsTarget = false
+			} else {
+				const dxy = RAToXYZ(RA(adjSpeed, Math.atan2(c.playerXY.y - xy.y, c.playerXY.x - xy.x)))
+				xy.x += dxy.x
+				xy.y += dxy.y
+			}
+        }
+	}
+
+	return {
+		center: xy,
+		maxSize: size,
+		preventsTreeAt: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number)=>false,
+		contains: (wp: XY, pad: number)=>false,
+		draw: (c: Config)=>{
+			light.draw(c)
+			centers.push(XYZ(xy.x, xy.y))
+			if (centers.length > 30) {
+				centers.splice(0, 1) // remove oldest
+
+				// determine left and right points of tangency
+				const oldest = centers[0]
+				const middle = centers[14]
+				const ra = XYsToRA(middle, xy)
+				const leftXY = XYZPlusXYZ(xy, RAToXYZ(RA(size, ra.a + Math.PI/2)))
+				const rightXY = XYZPlusXYZ(xy, RAToXYZ(RA(size, ra.a - Math.PI/2)))
+				lefts.push(leftXY)
+				rights.push(rightXY)
+				if (lefts.length > 30) {
+					lefts.splice(0, 1)
+					rights.splice(0, 1)
+
+					const middleLeft = lefts[14]
+					const middleRight = rights[14]
+
+					const cps = c.transform.xyzs([xy, middle, oldest, leftXY, rightXY, middleLeft, middleRight])
+
+					c.lib.beginPath()
+					c.lib.moveTo(cps[4].x, cps[4].y)
+					c.lib.bezierCurveTo(cps[6].x, cps[6].y, cps[2].x, cps[2].y, cps[2].x, cps[2].y)
+					c.lib.bezierCurveTo(cps[5].x, cps[5].y, cps[3].x, cps[3].y, cps[3].x, cps[3].y)
+
+					c.lib.globalCompositeOperation = "source-over"
+					c.lib.fillStyle = "#fff"
+					c.lib.fill()
+
+					c.lib.beginPath()
+					c.lib.arc(cps[0].x, cps[0].y, XYDistance(XYMinusXY(cps[0], cps[3])), 0, Math.PI * 2)
+					c.lib.fill()
+				}
+			}
 		},
 		update: (c: Config, avoid: Primitive[])=>behavior(c, avoid)
 	}
