@@ -2,7 +2,7 @@ import { XY } from './geometry';
 
 const GAME_VOLUME = 0.5;
 const ORGAN_VOLUME = 0.2;
-const WIND_VOLUME = 0.2;
+const WIND_VOLUME = 0.1;
 const FLAME_OF_UDUN_VOLUME = 0.6;
 const THUNDER_VOLUME = 0.5;
 const THUNDER_FILTER_FREQ = 180;
@@ -63,7 +63,6 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 	let lakePanners = lakePositions.map(pos => {
 		let p = context.createPanner();
 		p.setPosition(pos.x, pos.y, 0);
-		p.distanceModel = 'linear';
 		return p
 	});
 
@@ -125,7 +124,7 @@ export function wind(audio: AudioState) {
 	let windModulation = new Float32Array(10);
 	function modulateWind() {
 		let last = windModulation[9];
-		windModulation = windModulation.map(_ => WIND_VOLUME * ((Math.random() + Math.random()) - 0.75));
+		windModulation = windModulation.map(_ => WIND_VOLUME * Math.random())
 		windModulation[0] = last || windModulation[0];
 		audio.windGain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);
@@ -183,7 +182,7 @@ export function lake(audio: AudioState) {
 
 		let filter = audio.context.createBiquadFilter();
 		filter.type = 'bandpass';
-		filter.frequency.value = 2500 + Math.random() * 1000;
+		filter.frequency.value = 700;
 		filter.connect(p);
 
 		let gain = audio.context.createGain();
@@ -199,12 +198,14 @@ export function lake(audio: AudioState) {
 	function modulate() {
 		lakeGains.forEach(g => {
 			let t = audio.context.currentTime;
-			let peak = t + 2 * Math.random();
-			let end = peak + 4;
-			g.gain.linearRampToValueAtTime(Math.random() * LAKE_VOLUME + 0.1, peak);
-			g.gain.exponentialRampToValueAtTime(0.001, end);
+			let dt = 0.2 + Math.random() * 0.2;
+			g.gain.linearRampToValueAtTime(LAKE_VOLUME, t);
+			while (dt < 9.5) {
+				g.gain.linearRampToValueAtTime(LAKE_VOLUME + (Math.random() * 0.1 - 0.05), t + dt);
+				dt += (1 + Math.random() * 2);
+			}
 		});
-		setTimeout(modulate, (Math.random() * 2 + 9) * 1000);
+		setTimeout(modulate, 10000);
 	};
 	modulate();
 }
