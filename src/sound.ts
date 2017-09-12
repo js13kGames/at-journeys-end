@@ -41,9 +41,7 @@ export interface AudioState {
 	step: AudioPipeline;
 	flame: AudioPipeline;
 	thunder: AudioPipeline;
-	windGain: GainNode;
-	windFilter: BiquadFilterNode;
-	windProcessorNode: ScriptProcessorNode;
+	wind: AudioPipeline;
 }
 
 // The basic random noise generator was lifted from this helpful post:
@@ -79,27 +77,14 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 
 	// TODO: what is the correct frequency?
 	let step = new AudioPipeline(context, totalGain, 'bandpass', 666)
-
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
-
 	let thunder = new AudioPipeline(context, totalGain, 'lowpass', 180);
-
-	let windGain = context.createGain();
-	windGain.connect(totalGain);
-	let windFilter = context.createBiquadFilter();
-	windFilter.connect(windGain);
-	windFilter.type = 'highpass';
-	windFilter.frequency.value = 4000
-	let windProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
-	windProcessorNode.connect(windFilter);
+	let wind = new AudioPipeline(context, totalGain, 'highpass', 4000);
 
 	return {
 		context, totalGain, organWave,
 		listener, organPanner, lakePanners,
-		step,
-		flame,
-		thunder,
-		windGain, windFilter, windProcessorNode
+		step, flame, thunder, wind
 	};
 }
 
@@ -118,12 +103,12 @@ export function wind(audio: AudioState) {
 		let last = windModulation[9];
 		windModulation = windModulation.map(_ => WIND_VOLUME * Math.random())
 		windModulation[0] = last || windModulation[0];
-		audio.windGain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
+		audio.wind.gain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);
 	};
 	modulateWind();
 
-	audio.windProcessorNode.onaudioprocess = whiteNoise;
+	audio.wind.processor.onaudioprocess = whiteNoise;
 }
 
 export function stepSound(audio: AudioState) {
