@@ -40,9 +40,7 @@ export interface AudioState {
 	lakePanners: PannerNode[];
 	step: AudioPipeline;
 	flame: AudioPipeline;
-	thunderGain: GainNode;
-	thunderFilter: BiquadFilterNode;
-	thunderProcessorNode: ScriptProcessorNode;
+	thunder: AudioPipeline;
 	windGain: GainNode;
 	windFilter: BiquadFilterNode;
 	windProcessorNode: ScriptProcessorNode;
@@ -84,14 +82,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
 
-	let thunderGain = context.createGain();
-	thunderGain.connect(totalGain);
-	let thunderFilter = context.createBiquadFilter();
-	thunderFilter.connect(thunderGain);
-	thunderFilter.type = 'lowpass';
-	thunderFilter.frequency.value = 180;
-	let thunderProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
-	thunderProcessorNode.connect(thunderFilter);
+	let thunder = new AudioPipeline(context, totalGain, 'lowpass', 180);
 
 	let windGain = context.createGain();
 	windGain.connect(totalGain);
@@ -107,7 +98,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 		listener, organPanner, lakePanners,
 		step,
 		flame,
-		thunderGain, thunderFilter, thunderProcessorNode,
+		thunder,
 		windGain, windFilter, windProcessorNode
 	};
 }
@@ -160,21 +151,21 @@ export function flameOfUdun(audio: AudioState) {
 export function thunder(audio: AudioState) {
 	function modulate() {
 		let t = audio.context.currentTime;
-		audio.thunderGain.gain.setValueAtTime(0.7 + Math.random() * 0.2, t);
+		audio.thunder.gain.gain.setValueAtTime(0.7 + Math.random() * 0.2, t);
 		t += 0.2;
 		for (let i = 0; i < Math.random() * 6 + 2; i++) {
 			let a = Math.random();
-			audio.thunderGain.gain.linearRampToValueAtTime(a * THUNDER_VOLUME, t);
-			audio.thunderFilter.frequency.value = THUNDER_FILTER_FREQ + (Math.random() * 100 - 50);
+			audio.thunder.gain.gain.linearRampToValueAtTime(a * THUNDER_VOLUME, t);
+			audio.thunder.filter.frequency.value = THUNDER_FILTER_FREQ + (Math.random() * 100 - 50);
 			t += 0.2;
 		}
-		audio.thunderGain.gain.linearRampToValueAtTime(0.8 * THUNDER_VOLUME, t);
-		audio.thunderGain.gain.linearRampToValueAtTime(0.001, t + 5);
+		audio.thunder.gain.gain.linearRampToValueAtTime(0.8 * THUNDER_VOLUME, t);
+		audio.thunder.gain.gain.linearRampToValueAtTime(0.001, t + 5);
 		setTimeout(modulate, (Math.random() * 10 + 6) * 1000);
 	};
 	modulate();
 
-	audio.thunderProcessorNode.onaudioprocess = whiteNoise;
+	audio.thunder.processor.onaudioprocess = whiteNoise;
 }
 
 export function lake(audio: AudioState) {
