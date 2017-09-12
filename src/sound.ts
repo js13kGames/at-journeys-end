@@ -14,6 +14,23 @@ const openOrganR = new Float32Array([0, 1.0, 0.8, 0.6, 0.4, 0.2]);
 const openOrganI = new Float32Array(openOrganR.length);
 let organTable = (context: AudioContext) => context.createPeriodicWave(openOrganR, openOrganI);
 
+class AudioPipeline {
+	constructor(context: AudioContext, masterGain: GainNode, filterType: string, frequency: number) {
+		this.gain = context.createGain();
+		this.gain.connect(masterGain);
+		this.filter = context.createBiquadFilter();
+		this.filter.connect(this.gain);
+		this.filter.type = 'lowpass';
+		this.filter.frequency.value = 180;
+		this.processor = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+		this.processor.connect(this.filter);
+	}
+
+	gain: GainNode;
+	filter: BiquadFilterNode;
+	processor: ScriptProcessorNode;
+}
+
 export interface AudioState {
 	context: AudioContext;
 	totalGain: GainNode;
@@ -24,9 +41,7 @@ export interface AudioState {
 	stepGain: GainNode;
 	stepFilter: BiquadFilterNode;
 	stepProcessorNode: ScriptProcessorNode;
-	flameGain: GainNode;
-	flameFilter: BiquadFilterNode;
-	flameProcessorNode: ScriptProcessorNode;
+	flame: AudioPipeline;
 	thunderGain: GainNode;
 	thunderFilter: BiquadFilterNode;
 	thunderProcessorNode: ScriptProcessorNode;
@@ -74,14 +89,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 	let stepProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
 	stepProcessorNode.connect(stepFilter);
 
-	let flameGain = context.createGain();
-	flameGain.connect(totalGain);
-	let flameFilter = context.createBiquadFilter();
-	flameFilter.connect(flameGain);
-	flameFilter.type = 'lowpass';
-	flameFilter.frequency.value = 180;
-	let flameProcessorNode = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
-	flameProcessorNode.connect(flameFilter);
+	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
 
 	let thunderGain = context.createGain();
 	thunderGain.connect(totalGain);
@@ -105,7 +113,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 		context, totalGain, organWave,
 		listener, organPanner, lakePanners,
 		stepGain, stepFilter, stepProcessorNode,
-		flameGain, flameFilter, flameProcessorNode,
+		flame,
 		thunderGain, thunderFilter, thunderProcessorNode,
 		windGain, windFilter, windProcessorNode
 	};
@@ -148,12 +156,12 @@ export function stepSound(audio: AudioState) {
 }
 
 export function flameOfUdun(audio: AudioState) {
-	audio.flameGain.gain.setValueAtTime(0.01, audio.context.currentTime);
-	audio.flameGain.gain.exponentialRampToValueAtTime(FLAME_OF_UDUN_VOLUME, audio.context.currentTime + 0.4);
-	audio.flameGain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
-	audio.flameGain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
+	audio.flame.gain.gain.setValueAtTime(0.01, audio.context.currentTime);
+	audio.flame.gain.gain.exponentialRampToValueAtTime(FLAME_OF_UDUN_VOLUME, audio.context.currentTime + 0.4);
+	audio.flame.gain.gain.exponentialRampToValueAtTime(0.01, audio.context.currentTime + 0.6);
+	audio.flame.gain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
 
-	audio.flameProcessorNode.onaudioprocess = whiteNoise;
+	audio.flame.processor.onaudioprocess = whiteNoise;
 }
 
 export function thunder(audio: AudioState) {
