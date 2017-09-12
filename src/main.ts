@@ -1,7 +1,7 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies } from './map'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
-import { Primitive, Cube, Cylinder, Plane, FuelCan, Fence, TreeFence, Road, Light, Rain, Player, Enemy, createTiles, Tile, drawRain } from './primitives'
+import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Road, Light, Rain, Player, Enemy, createTiles, Tile, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -26,12 +26,12 @@ function main() {
 		canvasCenter: undefined,
 		worldViewRadius: 37,
 		time: 0,
-		playerXY: XY(0, -1),
+		playerXY: XY(0, -9),
 		//playerXY: XY(72, -238),
 		playerAngle: upAngle,
 		fuel: 100,
 		lanternIntensity: 1,
-		cameraXYZ: XYZ(0, 0, 20),
+		cameraXYZ: XYZ(0, 0, 25),
 		cameraAngle: upAngle,
 		transform: undefined,
 		now: new Date().getTime(),
@@ -116,11 +116,9 @@ function main() {
 	const demons = enemies.map(a=>Enemy(XYZ(a[0], a[1])))
 	demons.push(Enemy(XYZ(-10, -10)))
 	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
-	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], null))
-	const fenceBlocks = fences.filter(a=>a[0] == 1).reduce((parts: Primitive[], a: number[])=>{
-		parts.push(...Fence(a.slice(1)))
-		return parts
-	}, [] as Primitive[])
+	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6]))
+	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
+		parts.push(...(a[0] == 1 ? RailFence(a.slice(1)) : IronFence(a.slice(1)))); return parts }, [] as Primitive[])
 
 	// tree fences need to know where trees can't be placed
 	const avoid: Primitive[] = [
@@ -146,7 +144,7 @@ function main() {
 		for (let y = -400; y < 0; y += zoneSize) {
 			const r = Math.random() / 2 + 0.3
 			const xyz = XYZ(rand(x, r), rand(y, r), 0)
-			if (!avoid.some(p=>p.isTreeless && p.contains(xyz, r))) randomTrees.push(Cylinder(xyz, r, 30, null))
+			if (!avoid.some(p=>p.preventsTreeAt(xyz, r))) randomTrees.push(Cylinder(xyz, r, 30, null))
 		}
 	}
 
@@ -167,7 +165,7 @@ function main() {
 		...roadPlanes,
 		...cans,
 		...demons,
-		...tiles
+		...tiles,
 	]
 
 /*

@@ -9,8 +9,8 @@ import { moveWithDeflection } from './movement'
 export interface Primitive {
 	center: XYZ
 	maxSize: number
-	isTreeless: boolean
-	isBarrier: boolean
+	preventsTreeAt(wp: XY, pad: number): boolean
+	collidesWith(wp: XY, pad: number): boolean
 	contains(wp: XY, pad: number): boolean
 	draw(c: Config): void
 }
@@ -63,8 +63,8 @@ export function Tile(xy: XYZ, size: number): Tile {
 	return {
 		center: xy,
 		maxSize: size,
-		isTreeless: false, // unused
-		isBarrier: true, // all parts are barriers
+		preventsTreeAt: (wp: XY, pad: number)=>parts.some(p=>p.preventsTreeAt(wp, pad)),
+		collidesWith: (wp: XY, pad: number)=>parts.some(p=>p.collidesWith(wp, pad)),
 		contains: (wp: XY, pad: number)=>{
 			return wp.x >= minXY.x-s2 && wp.x <= maxXY.x+s2 &&
 				wp.y >= minXY.y-s2 && wp.y <= maxXY.y+s2 &&
@@ -93,16 +93,18 @@ export function Tile(xy: XYZ, size: number): Tile {
 	}
 }
 
-export function Cube(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
+export function Cube(xyz: XYZ, lwh: LWH, a: number, collide=true, color?: string): Primitive {
 	//lwh.h = 1
 	const bottomCorners = corners(xyz, lwh, a)
 	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
+	const contains = (wp: XY, pad: number)=>rectangleContains(xyz, lwh, a, wp, pad)
+
 	return {
 		center: xyz,
 		maxSize: Math.max(lwh.l, lwh.w),
-		isTreeless: true,
-		isBarrier: true,
-		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lwh, a, wp, pad),
+		preventsTreeAt: contains,
+		collidesWith: (wp: XY, pad: number)=>collide && contains(wp, pad),
+		contains: contains,
 		draw: (c: Config)=>{
 			if (XYDistance(XYMinusXY(xyz, c.cameraXYZ)) > c.worldViewRadius) return
 
@@ -137,18 +139,20 @@ export function Cube(xyz: XYZ, lwh: LWH, a: number, color?: string): Primitive {
 
 export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
 	//h = 1
+	const contains = (wp: XY, pad: number)=>{
+		const min = r + pad + 0.25
+		const rSquared = min * min
+		const dp = XYMinusXY(wp, xyz)
+		const dSquared = dp.x * dp.x + dp.y * dp.y
+		return dSquared < rSquared
+	}
+
 	return {
 		center: xyz,
 		maxSize: r,
-		isTreeless: true,
-		isBarrier: true,
-		contains: (wp: XY, pad: number)=>{
-			const min = r + pad + 0.25
-			const rSquared = min * min
-			const dp = XYMinusXY(wp, xyz)
-			const dSquared = dp.x * dp.x + dp.y * dp.y
-			return dSquared < rSquared
-		},
+		preventsTreeAt: contains,
+		collidesWith: contains,
+		contains: contains,
 		draw: (c: Config)=>{
 			
 			// find distance
@@ -191,12 +195,13 @@ export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primit
 
 // rectangle on the ground, z is ignored, lw is from center to edge (so half)
 export function Plane(xyz: XYZ, lw: LW, a: number, color: string, operation: string, barrier: boolean, treeless: boolean): Primitive {
+	const contains = (wp: XY, pad: number)=>rectangleContains(xyz, lw, a, wp, pad)
 	return {
 		center: xyz,
 		maxSize: Math.max(lw.l, lw.w),
-		isTreeless: treeless,
-		isBarrier: barrier,
-		contains: (wp: XY, pad: number)=>rectangleContains(xyz, lw, a, wp, pad),
+		preventsTreeAt: (wp: XY, pad: number)=>treeless && contains(wp, pad),
+		collidesWith: (wp: XY, pad: number)=>barrier && contains(wp, pad),
+		contains: contains,
 		draw: (c: Config)=>{
 			if (color) {
 				if (XYDistance(XYMinusXY(xyz, c.playerXY)) > c.worldViewRadius + Math.max(lw.l, lw.w)) return
@@ -221,6 +226,7 @@ export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
 	const dxyz = RAToXYZ(ra)
 	const p1 = XYMinusXY(xyz, dxyz)
 	const p2 = XYPlusXY(xyz, dxyz)
+	const contains = (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad))
 
 	// add stripes
 	for (let i = lineLength; i < lw.l - lineLength; i += 4 * lineLength) {
@@ -231,9 +237,9 @@ export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
 	return {
 		center: xyz,
 		maxSize: Math.max(lw.l, lw.l),
-		isTreeless: true,
-		isBarrier: false,
-		contains: (wp: XY, pad: number)=>parts.some(p=>p.contains(wp, pad)),
+		preventsTreeAt: contains,
+		collidesWith: (wp: XY, pad: number)=>false,
+		contains: contains,
 		draw: (c: Config)=>parts.forEach(p=>p.draw(c))
 	}
 }
@@ -242,8 +248,8 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 	return {
 		center: xyz,
 		maxSize: wr,
-		isTreeless: false,
-		isBarrier: false,
+		preventsTreeAt: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number)=>false,
 		contains: ()=>false,
 		draw: (c: Config)=>{
 			
@@ -278,7 +284,7 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 }
 
 export function FuelCan(xyz: XYZ, a: number): FuelCan {
-	const cube = Cube(xyz, LWH(0.27, 0.41, 0.9), a, "red")
+	const cube = Cube(xyz, LWH(0.27, 0.41, 0.9), a, true, "red")
 	let full = true
 
 	// cylinder
@@ -286,21 +292,22 @@ export function FuelCan(xyz: XYZ, a: number): FuelCan {
 	const cylinder = Cylinder(XYZ(p.x, p.y, .9), .1, .01, "red")
 
 	const parts: Primitive[] = [cube, cylinder]
+	const contains = (wp: XY, pad: number)=>full && parts.some(p=>p.contains(wp, pad))
 
 	return {
 		center: xyz,
 		maxSize: cube.maxSize,
-		isTreeless: false,
-		isBarrier: full,
-		contains: (wp: XY, pad: number)=>full && parts.some(p=>p.contains(wp, pad)),
+		preventsTreeAt: (wp: XY, pad: number)=>false,
+		collidesWith: contains,
+		contains: contains,
 		draw: (c: Config)=>full && parts.forEach(p=>p.draw(c)),
 		consume: ()=>full = false
 	}
 }
 
-export function Fence(a: number[]): Primitive[] {
+export function RailFence(a: number[]): Primitive[] {
 	const parts: Primitive[] = []
-	const post = (x1: number, y1: number, a: number)=>parts.push(Cube(XYZ(x1, y1, 0), LWH(.2, .2, 1.2), a))
+	const post = (x1: number, y1: number, a: number)=>parts.push(Cube(XYZ(x1, y1, 0), LWH(.2, .2, 1.2), a, false))
 
 	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]-1), XY(a[i+2], -a[i + 3]-1))
 
@@ -316,9 +323,38 @@ export function Fence(a: number[]): Primitive[] {
 			const x2 = x1 + dx
 			const y2 = y1 + dy
 			post(x1, y1, ra.a)
-			parts.push(Cube(XYZ((x1+x2)/2, (y1+y2)/2, 0.7), LWH(ra.r/spans/2, 0.1, 0.1), ra.a))
+			parts.push(Cube(XYZ((x1+x2)/2, (y1+y2)/2, 0.7), LWH(ra.r/spans/2, 0.1, 0.1), ra.a)) // rail
 		}
 		post(p2.x, p2.y, ra.a)
+	}
+
+	return parts
+}
+
+export function IronFence(a: number[]): Primitive[] {
+	// post: 2x2x2, 1.6x1.6x8, 2x2x1 at 8
+	// v-bars: .2x.2x9
+	// h-bars: at 2, at 7
+	// spacing: 1
+	const parts: Primitive[] = []
+	const post = (xy: XY, a: number)=>parts.push(...[
+		Cube(XYZ(xy.x, xy.y), LWH(1, 1, 2), a),
+		Cube(XYZ(xy.x, xy.y), LWH(.8, .8, 8), a, false),
+		Cube(XYZ(xy.x, xy.y, 8), LWH(1, 1, 1), a, false)
+	])
+	const vBar = (xy: XY, a: number)=>parts.push(Cube(XYZ(xy.x, xy.y), LWH(.1, .1, 9), a, false))
+	const hBar = (p1: XY, p2: XY, h: number, ra: RA)=>
+		parts.push(Cube(XYZ((p1.x+p2.x)/2, (p1.y+p2.y)/2, h), LWH(ra.r/2, .1, .1), ra.a))
+
+	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]-1), XY(a[i+2], -a[i + 3]-1))
+
+	function segment(p1: XY, p2: XY) {
+		const ra = XYsToRA(p1, p2)
+		post(p1, ra.a)
+		post(p2, ra.a)
+		for (let i = 1.5; i < ra.r - 1.5; i++) vBar(XYPlusXY(p1, RAToXYZ(RA(i, ra.a))), ra.a)
+		hBar(p1, p2, 2, ra)
+		hBar(p1, p2, 7, ra)
 	}
 
 	return parts
@@ -355,7 +391,7 @@ export function TreeFence(a: number[], avoid: Primitive[]): Primitive[] {
 			const xy = XYPlusXY(p, RAToXYZ(RA(2 + Math.random() * 2, ra.a + Math.PI / 2 * (i % 2 ? 1 : -1))))
 			const xyz = XYZ(xy.x, xy.y, 0)
 			const r3 = randomR()-.1
-			if (!avoid.some(p=>p.isTreeless && p.contains(xyz, r3))) trees.push(Cylinder(xyz, r3, randomH()))
+			if (!avoid.some(p=>p.preventsTreeAt(xyz, r3))) trees.push(Cylinder(xyz, r3, randomH()))
 		}
 	}
 
@@ -378,8 +414,8 @@ export function Player(): Primitive {
 	return {
 		center: null,
 		maxSize: null,
-		isTreeless: false,
-		isBarrier: false,
+		preventsTreeAt: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number)=>false,
 		contains: (wp: XY, pad: number)=>false,
 		draw: (c: Config)=>{
 			const playerXYZ = XYZ(c.playerXY.x, c.playerXY.y)
@@ -504,12 +540,14 @@ export function Enemy(xy: XYZ): Enemy {
 
 	behavior = idle
 
+	const contains = (wp: XY, pad: number)=>body.contains(wp, pad)
+
 	return {
 		center: xy,
 		maxSize: body.maxSize,
-		isTreeless: true,
-		isBarrier: false,
-		contains: (wp: XY, pad: number)=>body.contains(wp, pad),
+		preventsTreeAt: (wp: XY, pad: number)=>contains(wp, pad),
+		collidesWith: (wp: XY, pad: number)=>false,
+		contains: contains,
 		draw: (c: Config)=>{
 			body.draw(c)
 
