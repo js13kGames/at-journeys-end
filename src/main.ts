@@ -1,7 +1,8 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews, sounds } from './map'
-import { initIntro, updateIntro, initOutro, updateOutro, hideBoat, boatCubes } from './boat'
-import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Corpse, Road, Light, Rain, Player, Enemy, Spirit, createTiles, Tile, drawRain } from './primitives'
+import { initIntro, updateIntro, initOutro, updateOutro, hideBoat, inBoatCubes, outBoatCubes } from './boat'
+import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';
+import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Corpse, Road, Light, Player, Enemy, Spirit, createTiles, Tile } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 const TIME_UNITS_PER_STEP = 30
@@ -19,8 +20,8 @@ function main() {
 
 	const cameraHeight = 25
 	//let respawnXYZ = XYZ(40, -300, cameraHeight)
-	let respawnXYZ = XYZ(340, -490, cameraHeight)
-	//let respawnXYZ = XYZ(400, -2, cameraHeight)
+	//let respawnXYZ = XYZ(340, -490, cameraHeight)
+	let respawnXYZ = XYZ(400, -2, cameraHeight)
 	//let respawnXYZ = XYZ(420, -390, cameraHeight)
 	let respawnAngle = -Math.PI/2
 
@@ -69,7 +70,7 @@ function main() {
 
 	let walkSpeed = 0
 	let turnSpeed = 0
-	let showGrid = false
+	//let showGrid = false
 	let inBoatHidden = false
 
 	function keyDown(key: Number) {
@@ -78,20 +79,20 @@ function main() {
 			case 68: turnSpeed = 0.032; break;			// D right
 			case 87: walkSpeed = 0.07; break;			// W up
 			case 83: walkSpeed = -0.05; break;			// S down
-			case 16: walkSpeed = 0.3; break;			// shift fast
+			//case 16: walkSpeed = 0.3; break;			// shift fast
 
-			case 73: c.worldViewRadius++; break;	// I increase viewable area
-			case 75: c.worldViewRadius--; break;	// K decrease viewable area
-			case 81: toggleSound(audioState); break;	// T toggle sound
-			case 79: playOrgan(audioState); break;		// O organ
-			case 89: c.cameraXYZ.z++; break;		// Y camera up
-			case 72: c.cameraXYZ.z--; break;		// H camera down
-			case 70: c.health -= 1; break;
+			//case 73: c.worldViewRadius++; break;	// I increase viewable area
+			//case 75: c.worldViewRadius--; break;	// K decrease viewable area
+			//case 81: toggleSound(audioState); break;	// T toggle sound
+			//case 79: playOrgan(audioState); break;		// O organ
+			//case 89: c.cameraXYZ.z++; break;		// Y camera up
+			//case 72: c.cameraXYZ.z--; break;		// H camera down
+			//case 70: c.health -= 1; break;
 			//case 70: flameOfUdun(audioState); break;    // F flame
-			case 84: thunder(audioState); break;        // T thunder
-			case 48: showGrid = false; break;			// 0
-			case 49: showGrid = true; break;			// 1
-			default: console.log(key)
+			//case 84: thunder(audioState); break;        // T thunder
+			//case 48: showGrid = false; break;			// 0
+			//case 49: showGrid = true; break;			// 1
+			//default: console.log(key)
 		}
 	}
 
@@ -101,7 +102,7 @@ function main() {
 			case 68: turnSpeed = 0; break;	// D right
 			case 87: walkSpeed = 0; break;	// W up
 			case 83: walkSpeed = 0; break;	// S down
-			case 16: walkSpeed = 0; break;	// shift fast
+			//case 16: walkSpeed = 0; break;	// shift fast
 		}
 	}
 
@@ -151,8 +152,8 @@ function main() {
 		parts.push(...Pew(a)); return parts }, [] as Primitive[])
 	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
 		parts.push(...(a[0] == 1 ? RailFence(a.slice(1)) : IronFence(a.slice(1)))); return parts }, [] as Primitive[])
-	const inBoat = boat(boatCubes)
-	//const outBoat = boat(outBoatCubes)
+	const inBoat = boat(inBoatCubes)
+	const outBoat = boat(outBoatCubes)
 	const corpseParts = [...Corpse([467,390]), ...Corpse([467, 490])]
 
 	// tree fences need to know where trees can't be placed
@@ -201,7 +202,7 @@ function main() {
 		...basicPlanes,
 		...roadPlanes,
 		...inBoat,
-		//...outBoat,
+		...outBoat,
 		...cans,
 		player,
 		...NPCs,
@@ -209,8 +210,8 @@ function main() {
 		...oversize,
 	]
 
-	initIntro(c, inBoat)
-	//initOutro(c, outBoat)
+	//initIntro(c, inBoat)
+	initOutro(c, outBoat)
 
 /*
 	const rains: XYZ[] = []
@@ -253,7 +254,7 @@ function main() {
 		c.transform = getTransform(c)
 
 		// draw primitives
-		showGrid && tiles.forEach(t=>t.outline(c))
+		//showGrid && tiles.forEach(t=>t.outline(c))
 		c.lib.fillStyle = "black"
 		primitives.forEach(p=>p.draw(c))
 
@@ -300,17 +301,17 @@ function main() {
 			spirit.center.x = respawnXYZ.x
 			spirit.center.y = respawnXYZ.y
 			c.fuel = 100
-			flameOfUdun(audioState)
 
 			// wait for overlay to fade, then reset health
 			if (c.pain < -1) {
+				flameOfUdun(audioState)
 				c.pain = 1
 				c.health = 3
 			}
 		}
 
-		updateIntro(c, inBoat)
-		//updateOutro(c, outBoat)
+		//updateIntro(c, inBoat)
+		updateOutro(c, outBoat)
 
 		// positional triggers
 		if (!inBoatHidden && c.playerXY.y < -21) {

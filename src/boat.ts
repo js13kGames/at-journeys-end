@@ -1,13 +1,15 @@
 import { Primitive } from './primitives'
 import { Config, XYZ } from './geometry'
 
-export const boatCubes = [
+export const inBoatCubes = [
 	[0, 2, 0.01, 1.21, 1.21, 0.41, 5.5, 2 ],
 	[0, -2, 0.01, 1.21, 1.21, 0.41, 5.5, 2 ],
 	[0, 0, 0.01, 1.7, 4, 0.41, 0, 2 ],
 	[0, 0.83, 0.01, 1.3, 0.42, 0.41, 0, 4 ],
-	[0, -1.32, 0.01, 1.3, 0.42, 0.41, 0, 4 ],
+	[0, -1.32, 0.01, 1.3, 0.42, 0.41, 0, 4 ]
 ]
+
+export const outBoatCubes = inBoatCubes.map(a=>[a[1], a[0], a[2], a[4], a[3], a[5], a[6], a[7]])
 
 function initText(c: Config) {
 	c.lib.globalCompositeOperation = "source-over"

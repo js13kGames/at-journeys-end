@@ -30,7 +30,7 @@ export interface NPC extends Primitive {
 
 export interface Tile extends Primitive {
 	add(p: Primitive, rejects: Primitive[]): void
-	outline(c: Config): void
+	//outline(c: Config): void
 }
 
 export function createTiles(primitives: Primitive[], rejects: Primitive[]): Tile[] {
@@ -73,11 +73,15 @@ export function Tile(xy: XYZ, size: number): Tile {
 		},
 		add: (p: Primitive, rejects: Primitive[])=>{
 			if (p.maxSize <= s2) parts.push(p)
+
 			else {
+				/*
 				console.log("Note: part at " + p.center.x + ", " + p.center.y + " has size " + p.maxSize +
 					" which is too big for tiling")
+				*/
 				rejects.push(p)
 			}
+/*
 		},
 		outline: (c: Config)=>{
 			const inRange = XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r
@@ -91,6 +95,7 @@ export function Tile(xy: XYZ, size: number): Tile {
 			c.lib.lineTo(cps[0].x, cps[0].y)
 			c.lib.strokeStyle = color
 			c.lib.stroke()
+*/
 		}
 	}
 }
@@ -417,16 +422,6 @@ export function Corpse(a: number[]): Primitive[] {
 		Cube(XYZ(a[0], -a[1]+.4, .4), LWH(.35, 1, .1), 0, false, "#a3a3a3", "source-over"),
 		Cube(XYZ(a[0]-.2, -a[1], .4), LWH(.2, .5, .1), 6.1, false, "#a3a3a3", "source-over"),
 		Cube(XYZ(a[0]+.2, -a[1], .4), LWH(.2, .5, .1), 0.2, false, "#a3a3a3", "source-over"),
-
-/*
-export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
-export const cylinders = [
-    [399.8, 0.5, 0.4, 0.5, 0.2, 4 ],
-    [400.2, 0.5, 0.4, 0.5, 0.2, 4 ],
-    [400, 0.5, 0.4, 0.7, 0.2, 4 ],
-    [400, 1.1, 0.4, 0.7, 0.2, 4 ],
-*/
-
 		Cylinder(XYZ(a[0]-.2, -a[1]-.5, .4), .25, .2, "#a3a3a3", "source-over"),
 		Cylinder(XYZ(a[0]+.2, -a[1]-.5, .4), .25, .2, "#a3a3a3", "source-over"),
 		Cylinder(XYZ(a[0], -a[1]-.5, .4), .35, .2, "#a3a3a3", "source-over"),
@@ -762,6 +757,7 @@ function rectangleContains(xyz: XYZ, lw: LW, a: number, wp: XY, pad: number) {
 	return p.x >= xyz.x-lw.l-pad && p.x <= xyz.x+lw.l+pad && p.y >= xyz.y-lw.w-pad && p.y <= xyz.y+lw.w+pad
 }
 
+/*
 export function Rain(c: Config): XYZ {
 	const r = c.worldViewRadius / 1
 	const x = c.playerXY.x + (Math.random() * 2 - 1) * r
@@ -792,3 +788,4 @@ export function drawRain(p: XYZ, c: Config) {
 	c.lib.strokeStyle = "#" + light + light + light
 	c.lib.stroke()
 }
+*/
