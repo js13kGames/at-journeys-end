@@ -265,7 +265,7 @@ export function Light(xyz: XYZ, wr: number, b: number, cr: number, color = [255,
 			// find distance
 			const dxy = XYMinusXY(xyz, c.cameraXYZ)
 			const d = XYDistance(dxy)
-			if (d > c.worldViewRadius * 1.5) return
+			if (d > c.worldViewRadius + wr) return
 
 			const lightXY = c.transform.xyz(xyz)
 			const edgeXY = c.transform.xyz(XYZPlusXYZ(xyz, XYZ(wr, 0, 0)))
@@ -407,8 +407,8 @@ export function TreeFence(a: number[], avoid: Primitive[]): Primitive[] {
 
 export function Pew(a: number[]): Primitive[] {
 	return [
-		Cube(XYZ(a[0]-.5, -a[1]), LWH(.25, 4.5, 2), 0),
-		Cube(XYZ(a[0], -a[1]), LWH(.75, 4.5, 1), 0),
+		Cube(XYZ(a[0]-.5, -a[1]), LWH(.25, 4.5, 2), a[2]),
+		Cube(XYZ(a[0], -a[1]), LWH(.75, 4.5, 1), a[2]),
 	]
 }
 

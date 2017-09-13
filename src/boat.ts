@@ -33,7 +33,7 @@ function moveBoat(dx: number, dy: number, primitives: Primitive[]) {
 }
 
 let playIntro = true
-let playOutro = false
+let playOutro = true
 let elapsedSeconds = 0
 let boatX: number
 let boatY: number
@@ -84,26 +84,26 @@ export function updateOutro(c: Config, boatPrimitives: Primitive[]) {
 
 		// draw the text
 		initText(c)
-		text("At journey's end,", -40, elapsedSeconds, 2, c)
-		text("A meager cost;", 0, elapsedSeconds, 3, c)
-		text("A rite attend", 40, elapsedSeconds, 5, c)
-		text("To guide the lost.", 80, elapsedSeconds, 6, c)
+		text("Look for me by moonlight;", -40, elapsedSeconds, 4, c)
+		text("Watch for me by moonlight;", 0, elapsedSeconds, 6, c)
+		text("I'll come to thee by moonlight,", 40, elapsedSeconds, 8, c)
+		text("Though hell should bar the way.", 80, elapsedSeconds, 10, c)
 
 		// move the boat
 		elapsedSeconds += 1/60
-		const t = 10 - elapsedSeconds / 2.5
-		const newY = Math.pow(t, 2) + t/4
-		const dy = newY - boatY
-		boatPrimitives.forEach(p=>p.center.y += dy)
+		const t = elapsedSeconds / 2.5
+		const newX = 332 - (Math.pow(t, 2) + t/4)
+		const dx = newX - boatX
+		boatPrimitives.forEach(p=>p.center.x += dx)
 
 		// move the player and light
-		c.playerXY.x = boatX
-		c.playerXY.y = newY - .5
+		c.playerXY.x = newX - .5
+		c.playerXY.y = boatY
 
 		// move the camera
-		c.cameraXYZ.y = newY + Math.pow(Math.max(Math.min(t - 2, 50), 0), 2)
+		c.cameraXYZ.x = newX + Math.pow(Math.max(Math.min(t - 2, 50), 0), 2)
 
-		boatY = newY
+		boatX = newX
 		if (t <= 0) playOutro = false
 	}
 }

@@ -19,10 +19,8 @@ function main() {
 	initMovement()
 
 	const cameraHeight = 25
-	//let respawnXYZ = XYZ(40, -300, cameraHeight)
-	//let respawnXYZ = XYZ(340, -490, cameraHeight)
-	let respawnXYZ = XYZ(400, -2, cameraHeight)
-	//let respawnXYZ = XYZ(420, -390, cameraHeight)
+	//let respawnXYZ = XYZ(400, -2, cameraHeight)
+	let respawnXYZ = XYZ(355, -385, cameraHeight)
 
 	const c: Config = {
 		lib: canvas.getContext('2d'),
@@ -72,6 +70,7 @@ function main() {
 	let turnSpeed = 0
 	//let showGrid = false
 	let inBoatHidden = false
+	let churchSwap = false
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -79,7 +78,7 @@ function main() {
 			case 68: turnSpeed = 0.032; break;			// D right
 			case 87: walkSpeed = 0.07; break;			// W up
 			case 83: walkSpeed = -0.05; break;			// S down
-			//case 16: walkSpeed = 0.3; break;			// shift fast
+			case 16: walkSpeed = 0.3; break;			// shift fast
 
 			//case 73: c.worldViewRadius++; break;	// I increase viewable area
 			//case 75: c.worldViewRadius--; break;	// K decrease viewable area
@@ -151,7 +150,7 @@ function main() {
 		parts.push(...(a[0] == 1 ? RailFence(a.slice(1)) : IronFence(a.slice(1)))); return parts }, [] as Primitive[])
 	const inBoat = boat(inBoatCubes)
 	const outBoat = boat(outBoatCubes)
-	const corpseParts = [...Corpse([467,390]), ...Corpse([467, 490])]
+	const corpseParts = [...Corpse([377,385]), ...Corpse([467, 490])]
 
 	// tree fences need to know where trees can't be placed
 	const avoid: Primitive[] = [
@@ -174,7 +173,7 @@ function main() {
 	const zoneSize = 4
 	const rand = (n: number, r: number)=>n + Math.random() * (zoneSize - r * 2) + r
 	for (let x = -20; x < 580; x += zoneSize) {
-		for (let y = -400; y < 0; y += zoneSize) {
+		for (let y = -520; y < 0; y += zoneSize) {
 			const r = Math.random() / 2 + 0.3
 			const xyz = XYZ(rand(x, r), rand(y, r), 0)
 			if (!avoid.some(p=>p.preventsTreeAt(xyz, r))) randomTrees.push(Cylinder(xyz, r, 30, null))
@@ -313,9 +312,26 @@ function main() {
 			hideBoat(inBoat)
 			inBoatHidden = true
 		}
+		/*
+		if (c.playerXY.x < 332) {
+			updateOutro(c, outBoat)
+		}
+		*/
+		if (churchSwap && c.playerXY.x < 336) {
+			//c.playerXY.x = 332
+			//c.playerXY.y = -490
+			updateOutro(c, outBoat)
+		}
+		if (!churchSwap && c.playerXY.x > 370 && c.playerXY.y < -370) {
+			c.playerXY.x += 90
+			c.playerXY.y -= 105
+			c.cameraXYZ.x += 90
+			c.cameraXYZ.y -= 105
+			churchSwap = true
+			initOutro(c, outBoat)
+		}
 
 		// frame rate in upper left corner
-/*
 		const frameRate = Math.round(1000 / c.frameMS)
 		c.lib.globalCompositeOperation = "source-over"
 		c.lib.fillStyle = "yellow"
@@ -324,7 +340,6 @@ function main() {
 			Math.round(c.playerXY.y) + ") " + frameRate + " fps" +
 			", fuel: " + c.fuel.toFixed(2) + ", health: " + c.health +
 			", respawn: " + respawnXYZ.x + ", " + respawnXYZ.y, 5, 15)
-*/
 
 		window.requestAnimationFrame(draw)
 	}

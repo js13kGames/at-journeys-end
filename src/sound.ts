@@ -3,9 +3,9 @@ import { XY } from './geometry';
 const GAME_VOLUME = 0.5;
 const ORGAN_VOLUME = 0.2;
 const WIND_VOLUME = 0.08;
-const FLAME_OF_UDUN_VOLUME = 0.6;
+const FLAME_OF_UDUN_VOLUME = 1.5;
 const LAKE_VOLUME = 0.3;
-const STEP_VOLUME = 0.1;
+const STEP_VOLUME = 0.05;
 const BUFFER_SIZE = 4096;
 const MAX_ORGAN_VOICES = 3;
 
