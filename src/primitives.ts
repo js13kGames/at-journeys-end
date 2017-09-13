@@ -146,7 +146,7 @@ function circleContains(center: XYZ, r: number, wp: XY, pad: number): boolean {
 	return (dp.x * dp.x + dp.y * dp.y) < min * min
 }
 
-export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
+export function Cylinder(xyz: XYZ, r: number, h: number, color?: string, op?: string): Primitive {
 	const contains = (wp: XY, pad: number)=>circleContains(xyz, r, wp, pad)
 
 	return {
@@ -180,7 +180,7 @@ export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primit
 
 			// draw
 			c.lib.fillStyle = color ? color : "black"
-			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
+			c.lib.globalCompositeOperation = op ? op : (color ? "overlay" : "source-over")
 			c.lib.beginPath()
 			moveTo(bxys[0], c)
 			lineTo(txys[0], c)
@@ -252,13 +252,13 @@ export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
 	}
 }
 
-export function Light(xyz: XYZ, wr: number, b: number, color = [255, 255, 255], flicker=false): Light {
+export function Light(xyz: XYZ, wr: number, b: number, cr: number, color = [255, 255, 255], flicker=false): Light {
 	const rgba = "rgba(" + color[0] + "," + color[1] + "," + color[2] + ","
 	return {
 		center: xyz,
 		maxSize: wr,
 		preventsTreeAt: (wp: XY, pad: number)=>false,
-		collidesWith: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number, _: boolean, isEnemy: boolean)=>isEnemy && circleContains(xyz, cr, wp, pad),
 		contains: ()=>false,
 		draw: (c: Config)=>{
 			
@@ -318,7 +318,7 @@ export function RailFence(a: number[]): Primitive[] {
 	const parts: Primitive[] = []
 	const post = (x1: number, y1: number, a: number)=>parts.push(Cube(XYZ(x1, y1, 0), LWH(.2, .2, 1.2), a, false))
 
-	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]-1), XY(a[i+2], -a[i + 3]-1))
+	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]), XY(a[i+2], -a[i + 3]))
 
 	function segment(p1: XY, p2: XY) {
 		const ra = XYsToRA(p1, p2)
@@ -409,6 +409,28 @@ export function Pew(a: number[]): Primitive[] {
 	return [
 		Cube(XYZ(a[0]-.5, -a[1]), LWH(.25, 4.5, 2), 0),
 		Cube(XYZ(a[0], -a[1]), LWH(.75, 4.5, 1), 0),
+	]
+}
+
+export function Corpse(a: number[]): Primitive[] {
+	return [
+		Cube(XYZ(a[0], -a[1]+.4, .4), LWH(.35, 1, .1), 0, false, "#a3a3a3", "source-over"),
+		Cube(XYZ(a[0]-.2, -a[1], .4), LWH(.2, .5, .1), 6.1, false, "#a3a3a3", "source-over"),
+		Cube(XYZ(a[0]+.2, -a[1], .4), LWH(.2, .5, .1), 0.2, false, "#a3a3a3", "source-over"),
+
+/*
+export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
+export const cylinders = [
+    [399.8, 0.5, 0.4, 0.5, 0.2, 4 ],
+    [400.2, 0.5, 0.4, 0.5, 0.2, 4 ],
+    [400, 0.5, 0.4, 0.7, 0.2, 4 ],
+    [400, 1.1, 0.4, 0.7, 0.2, 4 ],
+*/
+
+		Cylinder(XYZ(a[0]-.2, -a[1]-.5, .4), .25, .2, "#a3a3a3", "source-over"),
+		Cylinder(XYZ(a[0]+.2, -a[1]-.5, .4), .25, .2, "#a3a3a3", "source-over"),
+		Cylinder(XYZ(a[0], -a[1]-.5, .4), .35, .2, "#a3a3a3", "source-over"),
+		Cylinder(XYZ(a[0], -a[1]-1.1, .4), .35, .2, "#a3a3a3", "source-over")
 	]
 }
 
@@ -615,7 +637,7 @@ export function Enemy(xy: XYZ): NPC {
 }
 
 export function Spirit(xy: XYZ): NPC {
-	const light = Light(xy, 15, 1, [122, 194, 255])
+	const light = Light(xy, 15, 1, 0, [122, 194, 255])
 	const attachDistance = 6
     const speed = 1
     const targetDistance = 4

@@ -1,8 +1,8 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews } from './map'
-import { initIntro, updateIntro, boatCubes } from './boat'
+import { initIntro, updateIntro, initOutro, updateOutro, hideBoat, boatCubes } from './boat'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
-import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Road, Light, Rain, Player, Enemy, Spirit, createTiles, Tile, drawRain } from './primitives'
+import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Corpse, Road, Light, Rain, Player, Enemy, Spirit, createTiles, Tile, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -21,9 +21,10 @@ function main() {
 
 	const cameraHeight = 25
 	//let respawnXYZ = XYZ(40, -300, cameraHeight)
+	let respawnXYZ = XYZ(340, -490, cameraHeight)
 	//let respawnXYZ = XYZ(400, -2, cameraHeight)
-	let respawnXYZ = XYZ(420, -390, cameraHeight)
-	let respawnAngle = 1.5 * Math.PI
+	//let respawnXYZ = XYZ(420, -390, cameraHeight)
+	let respawnAngle = -Math.PI/2
 
 	const c: Config = {
 		lib: canvas.getContext('2d'),
@@ -63,6 +64,7 @@ function main() {
 	let walkSpeed = 0
 	let turnSpeed = 0
 	let showGrid = false
+	let inBoatHidden = false
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -119,17 +121,22 @@ function main() {
 		"multiply"
 	]
 
+	function boat(data: number[][]): Primitive[] {
+		return data.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], false, cubeColors[a[7]-1],
+			"source-over"))
+	}
+
 	// primitives
 	const player = Player()
-	const lantern = Light(XYZ(0,0), c.worldViewRadius, 1, [255, 214, 176], true)
-	const otherLights = lights.map(a=>Light(XYZ(a[0], -a[1]), a[2], a[3]))
+	const lantern = Light(XYZ(0,0), c.worldViewRadius, 1, 0, [255, 214, 176], true)
+	const otherLights = lights.map(a=>Light(XYZ(a[0], -a[1]), a[2], a[3], a[4]))
 	const treelessPlanes = noTreeZones.map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2]/2, a[3]/2), a[4],
 		null, null, false, true))
 	const basicPlanes = planes.filter(a=>a[5] != 5).map(a=>Plane(XYZ(a[0], -a[1], 0), LW(a[2] * 5, a[3] * 5), a[4],
 		planeColors[a[5]-1], operations[a[5]], a[6]>1, a[6]!=2))
 	const roadPlanes = planes.filter(a=>a[5] == 5).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[2]*5, a[3]*5), a[4]))
 	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
-	const spirit = Spirit(XYZ(90, -208))
+	const spirit = Spirit(XYZ(490, -208))
 	const NPCs = [spirit, ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))]
 	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
 	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], true,
@@ -138,8 +145,9 @@ function main() {
 		parts.push(...Pew(a)); return parts }, [] as Primitive[])
 	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
 		parts.push(...(a[0] == 1 ? RailFence(a.slice(1)) : IronFence(a.slice(1)))); return parts }, [] as Primitive[])
-	const boatBlocks = boatCubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], false,
-		cubeColors[a[7]-1], "source-over"))
+	const inBoat = boat(boatCubes)
+	//const outBoat = boat(outBoatCubes)
+	const corpseParts = [...Corpse([467,390]), ...Corpse([467, 490])]
 
 	// tree fences need to know where trees can't be placed
 	const avoid: Primitive[] = [
@@ -173,6 +181,7 @@ function main() {
 	const tiles = createTiles([
 		...basicCylinders,
 		...basicBlocks,
+		...corpseParts,
 		...pewBlocks,
 		...fenceBlocks,
 		...treeFences,
@@ -185,7 +194,8 @@ function main() {
 		...treelessPlanes,
 		...basicPlanes,
 		...roadPlanes,
-		...boatBlocks,
+		...inBoat,
+		//...outBoat,
 		...cans,
 		player, 
 		...NPCs,
@@ -193,7 +203,8 @@ function main() {
 		...oversize,
 	]
 
-	initIntro(c, boatBlocks)
+	initIntro(c, inBoat)
+	//initOutro(c, outBoat)
 
 /*
 	const rains: XYZ[] = []
@@ -209,7 +220,7 @@ function main() {
 		c.time += 0.1
 
 		// update player and lantern
-		c.playerAngle += turnSpeed
+		if (c.playerXY.y < 1) c.playerAngle += turnSpeed
 		c.playerXY = moveWithDeflection(c.playerXY, c.playerAngle, walkSpeed, 0.3, true, false, primitives, c)
 		c.fuel = Math.max(c.fuel - (c.frameMS / 1000) * .7, 0)
 		c.lanternIntensity = Math.max((Math.pow(c.fuel, 0.5) + Math.pow(c.fuel, 1/3)) * .07, 0.1)
@@ -286,7 +297,14 @@ function main() {
 			}
 		}
 
-		//updateIntro(c, boatBlocks)
+		updateIntro(c, inBoat)
+		//updateOutro(c, outBoat)
+
+		// positional triggers
+		if (!inBoatHidden && c.playerXY.y < -21) {
+			hideBoat(inBoat)
+			inBoatHidden = true
+		}
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / c.frameMS)
