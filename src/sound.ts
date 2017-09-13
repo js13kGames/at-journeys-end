@@ -198,7 +198,6 @@ type AudioSpec = [number, number, number, number];
 type NoteSpec = [string, number];
 
 function playOrganNote(audio: AudioState, spec: AudioSpec) {
-	console.log(spec);
 	let [frequency, voice, start, end] = spec;
 	let o = audio.context.createOscillator();
 	o.frequency.value = 0;
