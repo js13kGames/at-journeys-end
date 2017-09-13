@@ -76,6 +76,7 @@ export function updateIntro(c: Config, boatPrimitives: Primitive[]) {
 export function initOutro(c: Config, boatPrimitives: Primitive[]) {
 	boatX = 332
 	boatY = -490
+	elapsedSeconds = 0
 	moveBoat(boatX, boatY, boatPrimitives)
 }
 

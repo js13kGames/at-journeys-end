@@ -64,7 +64,10 @@ export function Tile(xy: XYZ, size: number): Tile {
 				parts.some(p=>p.contains(wp, pad))
 		},
 		draw: (c: Config)=>{
-			if (XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r) parts.forEach(p=>p.draw(c))
+			if (XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r) {
+				c.tilesActive++
+				parts.forEach(p=>p.draw(c))
+			}
 		},
 		add: (p: Primitive, rejects: Primitive[])=>{
 			if (p.maxSize <= s2) parts.push(p)
@@ -481,6 +484,7 @@ export function Player(): Primitive {
 }
 
 export function Enemy(xy: XYZ): NPC {
+	console.log("Enemy spawned")
 	const body = Cylinder(xy, 0.7, 30, "#000")
 
 	let behavior: (c: Config, avoid: Primitive[])=>void
