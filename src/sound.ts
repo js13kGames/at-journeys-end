@@ -112,7 +112,7 @@ export function wind(audio: AudioState) {
 	let windModulation = new Float32Array(10);
 	function modulateWind() {
 		let last = windModulation[9];
-		windModulation = windModulation.map(_ => Math.random() > 0.6 ? WIND_VOLUME : 0)
+		windModulation = windModulation.map(_ => Math.random() > 0.6 ? WIND_VOLUME * Math.random() : 0)
 		windModulation[0] = last || windModulation[0];
 		audio.wind.gain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);

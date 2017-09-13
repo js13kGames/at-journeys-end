@@ -9,7 +9,6 @@ const TIME_UNITS_PER_STEP = 30
 
 function main() {
 	const body = document.body.style
-	//body.backgroundColor = "#000"
 	body.margin = "0"
 	body.overflow = "hidden"
 
@@ -19,8 +18,7 @@ function main() {
 	initMovement()
 
 	const cameraHeight = 25
-	//let respawnXYZ = XYZ(400, -2, cameraHeight)
-	let respawnXYZ = XYZ(355, -385, cameraHeight)
+	let respawnXYZ = XYZ(400, -2, cameraHeight)
 
 	const c: Config = {
 		lib: canvas.getContext('2d'),
@@ -31,7 +29,7 @@ function main() {
 		//playerXY: XY(400, -1),
 		playerXY: copyXYZ(respawnXYZ),
 		playerAngle: -Math.PI/2,
-		fuel: 100,
+		fuel: 1,
 		lanternIntensity: 1,
 		cameraXYZ: copyXYZ(respawnXYZ),
 		cameraAngle: -Math.PI/2,
@@ -71,6 +69,7 @@ function main() {
 	//let showGrid = false
 	let inBoatHidden = false
 	let churchSwap = false
+	let spawnTimer = 0
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -206,13 +205,7 @@ function main() {
 		...oversize,
 	]
 
-	//initIntro(c, inBoat)
-	//initOutro(c, outBoat)
-
-/*
-	const rains: XYZ[] = []
-	for (let i = 0; i < 100; i++) rains.push(Rain(c))
-*/
+	initIntro(c, inBoat)
 
 	function draw() {
 
@@ -230,6 +223,18 @@ function main() {
 		lantern.center.x = c.playerXY.x
 		lantern.center.y = c.playerXY.y
 		lantern.setIntensity(c.lanternIntensity)
+
+		// spawn enemies when out of light
+		if (c.fuel > 0) {
+			spawnTimer = c.now + 20000
+		}
+		if (c.now >= spawnTimer) {
+			const xyz = RAToXYZ(RA(Math.random() * 5 + 5, Math.random() * 2 * Math.PI))
+			const e = Enemy(XYZ(c.playerXY.x + xyz.x, c.playerXY.y + xyz.y))
+			primitives.push(e)
+			NPCs.push(e)
+			spawnTimer = c.now + 30000
+		}
 
 		let playerDirection = RAToXYZ(RA(1, c.playerAngle))
 		moveListener(audioState, c.playerXY, playerDirection)
@@ -250,12 +255,8 @@ function main() {
 		c.transform = getTransform(c)
 
 		// draw primitives
-		//showGrid && tiles.forEach(t=>t.outline(c))
 		c.lib.fillStyle = "black"
 		primitives.forEach(p=>p.draw(c))
-
-		// draw rain
-		//rains.forEach(rain=>drawRain(rain, c))
 
 		// check for refueling
 		cans.forEach(can=>{
@@ -304,22 +305,14 @@ function main() {
 			}
 		}
 
-		//updateIntro(c, inBoat)
-		//updateOutro(c, outBoat)
+		updateIntro(c, inBoat)
 
 		// positional triggers
 		if (!inBoatHidden && c.playerXY.y < -21) {
 			hideBoat(inBoat)
 			inBoatHidden = true
 		}
-		/*
-		if (c.playerXY.x < 332) {
-			updateOutro(c, outBoat)
-		}
-		*/
-		if (churchSwap && c.playerXY.x < 336) {
-			//c.playerXY.x = 332
-			//c.playerXY.y = -490
+		if (churchSwap && c.playerXY.x < 335) {
 			updateOutro(c, outBoat)
 		}
 		if (!churchSwap && c.playerXY.x > 370 && c.playerXY.y < -370) {
@@ -332,6 +325,7 @@ function main() {
 		}
 
 		// frame rate in upper left corner
+/*
 		const frameRate = Math.round(1000 / c.frameMS)
 		c.lib.globalCompositeOperation = "source-over"
 		c.lib.fillStyle = "yellow"
@@ -340,6 +334,7 @@ function main() {
 			Math.round(c.playerXY.y) + ") " + frameRate + " fps" +
 			", fuel: " + c.fuel.toFixed(2) + ", health: " + c.health +
 			", respawn: " + respawnXYZ.x + ", " + respawnXYZ.y, 5, 15)
+*/
 
 		window.requestAnimationFrame(draw)
 	}

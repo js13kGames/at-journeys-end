@@ -21,7 +21,7 @@ function text(s: string, dy: number, elapsedSeconds: number, offset: number, c: 
 	const x = c.canvasLW.l / 4 - 75
 	const y = c.canvasLW.w / 2 - 75
 
-	c.lib.fillStyle = "rgba(200,200,200," + (elapsedSeconds < 10 ? elapsedSeconds - offset : 16 - elapsedSeconds) + ")"
+	c.lib.fillStyle = "rgba(200,200,200," + (elapsedSeconds < 13 ? elapsedSeconds - offset : 16 - elapsedSeconds) + ")"
 	c.lib.fillText(s, x, y+dy)
 }
 
@@ -32,7 +32,7 @@ function moveBoat(dx: number, dy: number, primitives: Primitive[]) {
 	})
 }
 
-let playIntro = true
+let playIntro = false
 let playOutro = true
 let elapsedSeconds = 0
 let boatX: number
@@ -88,6 +88,7 @@ export function updateOutro(c: Config, boatPrimitives: Primitive[]) {
 		text("Watch for me by moonlight;", 0, elapsedSeconds, 6, c)
 		text("I'll come to thee by moonlight,", 40, elapsedSeconds, 8, c)
 		text("Though hell should bar the way.", 80, elapsedSeconds, 10, c)
+		text("       -- Alfred Noyes, The Highwayman", 120, elapsedSeconds, 13, c)
 
 		// move the boat
 		elapsedSeconds += 1/60
@@ -101,10 +102,10 @@ export function updateOutro(c: Config, boatPrimitives: Primitive[]) {
 		c.playerXY.y = boatY
 
 		// move the camera
-		c.cameraXYZ.x = newX + Math.pow(Math.max(Math.min(t - 2, 50), 0), 2)
+		if (t > 1) c.cameraXYZ.x = newX + Math.pow(Math.max(Math.min(t - 2, 50), 0), 2)
 
 		boatX = newX
-		if (t <= 0) playOutro = false
+		if (t > 25) playOutro = false
 	}
 }
 
