@@ -1,11 +1,6 @@
-import { distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
+import { sourceOver, distance, Config, XYZ, XY, LWH, LW, RA, LWToRA, XYToRA, XYsToRA, RAToXYZ, XYZPlusXYZ, XYPlusXY, XYMinusXY, XYDistance } from './geometry';
 import { moveWithDeflection } from './movement'
 
-/**********************************
- *
- * Water particle equation: y = -(2x-1)^2 + 1 where x is time and y is size. Both vary from 0 to 1
- * Aspect ratio is W/H = 10
- */
 export interface Primitive {
 	center: XYZ
 	maxSize: number
@@ -289,7 +284,7 @@ export function Light(xyz: XYZ, wr: number, b: number, cr: number, color = [255,
 				g.addColorStop((x - 1) / lightScale, rgba + alpha + ")")
 			}
 			c.lib.fillStyle = g
-			c.lib.globalCompositeOperation = "source-over"
+			sourceOver(c)
 			c.lib.fillRect(lightXY.x - cr, lightXY.y - cr, cr * 2, cr * 2)
 		},
 		setRadius: (r: number)=>wr = r,
@@ -479,7 +474,7 @@ export function Player(): Primitive {
 				c.lib.bezierCurveTo(cps[i].x, cps[i].y, cps[i+1].x, cps[i+1].y, cps[i+2].x, cps[i+2].y)
 			}
 			c.lib.fillStyle = "black"
-			c.lib.globalCompositeOperation = "source-over"
+			sourceOver(c)
 			c.lib.fill()
 		}
 	}
@@ -623,7 +618,7 @@ export function Enemy(xy: XYZ): NPC {
 			c.lib.arc(cp1.x, cp1.y, 2.5, 0, Math.PI * 2)	// eyeball
 			c.lib.moveTo(cp2.x, cp2.y)
 			c.lib.arc(cp2.x, cp2.y, 2.5, 0, Math.PI * 2)	// eyeball
-			c.lib.globalCompositeOperation = "source-over"
+			sourceOver(c)
 			c.lib.fillStyle = "rgba(" + red + ",0,0,1)"
 			c.lib.fill()
 		},
@@ -713,7 +708,7 @@ export function Spirit(xy: XYZ): NPC {
 					c.lib.bezierCurveTo(cps[6].x, cps[6].y, cps[2].x, cps[2].y, cps[2].x, cps[2].y)
 					c.lib.bezierCurveTo(cps[5].x, cps[5].y, cps[3].x, cps[3].y, cps[3].x, cps[3].y)
 
-					c.lib.globalCompositeOperation = "source-over"
+					sourceOver(c)
 					c.lib.fillStyle = "#fff"
 					c.lib.fill()
 

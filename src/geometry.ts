@@ -112,6 +112,10 @@ export function XYPlusXY(a: XY, b: XY): XY {
 	return XY(a.x + b.x, a.y + b.y)
 }
 
+export function sourceOver(c: Config) {
+	c.lib.globalCompositeOperation = "source-over"
+}
+
 export function getTransform(c: Config): Transform {
 
 	// precalculate canvas center, canvas radius, and scale

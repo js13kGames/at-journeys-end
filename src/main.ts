@@ -1,4 +1,4 @@
-import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
+import { sourceOver, getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews, sounds } from './map'
 import { initIntro, updateIntro, initOutro, updateOutro, hideBoat, inBoatCubes, outBoatCubes } from './boat'
 import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, wind } from './sound';
@@ -9,8 +9,8 @@ const TIME_UNITS_PER_STEP = 30
 
 function main() {
 	const body = document.body.style
-	body.backgroundColor = "#000"
-	body.margin = "0px"
+	//body.backgroundColor = "#000"
+	body.margin = "0"
 	body.overflow = "hidden"
 
 	const canvas = <HTMLCanvasElement>document.createElement("canvas")
@@ -142,8 +142,8 @@ function main() {
 	const spirit = Spirit(XYZ(490, -208))
 	const NPCs = [spirit, ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))]
 	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
-	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], true,
-		cubeColors[a[7]-1]))
+	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6] ? a[6] : 0, true,
+		cubeColors[a[7] ? a[7]-1 : 1]))
 	const pewBlocks = pews.reduce((parts: Primitive[], a: number[])=>{
 		parts.push(...Pew(a)); return parts }, [] as Primitive[])
 	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
@@ -244,7 +244,7 @@ function main() {
 
 		// clear the canvas
 		c.lib.fillStyle = "#000"
-		c.lib.globalCompositeOperation = "source-over"
+		sourceOver(c)
 		c.lib.fillRect(0, 0, c.canvasLW.l, c.canvasLW.w)
 
 		c.transform = getTransform(c)
@@ -276,13 +276,13 @@ function main() {
 			if (c.pain > 0) {
 				c.pain -= 1/120
 				if (c.pain <= 0) c.pain = 0
-				c.lib.globalCompositeOperation = "source-over"
+				sourceOver(c)
 				c.lib.fillStyle = "rgba(25,0,0," + c.pain + ")"
 				c.lib.fillRect(0, 0, c.canvasLW.l, c.canvasLW.w)
 			}
 		} else {
 			c.pain -= 1/120
-			c.lib.globalCompositeOperation = "source-over"
+			sourceOver(c)
 			const red = Math.round(c.pain / 4)
 			const green = Math.round(c.pain / 8)
 			const blue = green
