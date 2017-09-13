@@ -7,7 +7,7 @@ const FLAME_OF_UDUN_VOLUME = 0.6;
 const THUNDER_VOLUME = 0.5;
 const THUNDER_FILTER_FREQ = 180;
 const LAKE_VOLUME = 0.3;
-const STEP_VOLUME = 0.2;
+const STEP_VOLUME = 0.1;
 const BUFFER_SIZE = 4096;
 const MAX_ORGAN_VOICES = 3;
 
@@ -183,7 +183,7 @@ export function lake(audio: AudioState) {
 
 		let filter = audio.context.createBiquadFilter();
 		filter.type = 'bandpass';
-		filter.frequency.value = 700;
+		filter.frequency.value = 900;
 		filter.connect(p);
 
 		let gain = audio.context.createGain();
@@ -203,7 +203,7 @@ export function lake(audio: AudioState) {
 			g.gain.linearRampToValueAtTime(LAKE_VOLUME, t);
 			while (dt < 9.5) {
 				g.gain.linearRampToValueAtTime(LAKE_VOLUME + (Math.random() * 0.1 - 0.05), t + dt);
-				dt += (1 + Math.random() * 2);
+				dt += (0.2 + Math.random() * 0.2);
 			}
 		});
 		setTimeout(modulate, 10000);
