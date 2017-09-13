@@ -20,8 +20,8 @@ function main() {
 
 	const cameraHeight = 25
 	//let respawnXYZ = XYZ(40, -300, cameraHeight)
-	let respawnXYZ = XYZ(340, -490, cameraHeight)
-	//let respawnXYZ = XYZ(400, -2, cameraHeight)
+	//let respawnXYZ = XYZ(340, -490, cameraHeight)
+	let respawnXYZ = XYZ(400, -2, cameraHeight)
 	//let respawnXYZ = XYZ(420, -390, cameraHeight)
 
 	const c: Config = {
@@ -107,7 +107,7 @@ function main() {
 	window.addEventListener("keyup", e => keyUp(e.keyCode))
 
 	const cubeColors = [
-		"black",
+		"",
 		"#303030",
 		"",
 		"#383838"
@@ -143,7 +143,7 @@ function main() {
 	const NPCs = [spirit, ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))]
 	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
 	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6] ? a[6] : 0, true,
-		cubeColors[a[7] ? a[7]-1 : 1]))
+		cubeColors[a[7] ? a[7]-1 : 0]))
 	const pewBlocks = pews.reduce((parts: Primitive[], a: number[])=>{
 		parts.push(...Pew(a)); return parts }, [] as Primitive[])
 	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
@@ -170,7 +170,7 @@ function main() {
 
 	// generate trees by dividing the map into zones and putting one tree in each zone
 	const randomTrees = []
-	const zoneSize = 5
+	const zoneSize = 4
 	const rand = (n: number, r: number)=>n + Math.random() * (zoneSize - r * 2) + r
 	for (let x = -20; x < 580; x += zoneSize) {
 		for (let y = -400; y < 0; y += zoneSize) {
@@ -207,7 +207,7 @@ function main() {
 	]
 
 	//initIntro(c, inBoat)
-	initOutro(c, outBoat)
+	//initOutro(c, outBoat)
 
 /*
 	const rains: XYZ[] = []
@@ -305,7 +305,7 @@ function main() {
 		}
 
 		//updateIntro(c, inBoat)
-		updateOutro(c, outBoat)
+		//updateOutro(c, outBoat)
 
 		// positional triggers
 		if (!inBoatHidden && c.playerXY.y < -21) {
