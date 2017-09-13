@@ -47,8 +47,8 @@ function main() {
 
 	// TODO: assign locations based on 'sounds' array from 'map' module
 	const audioState = initSound(c.playerXY,
-		XY(32.75, -22.5),
-		sounds.filter(([x, y, t]) => t === 5).map(([x, y, _]) => XY(x, y)));
+		sounds.filter(([x, y, t]) => t === 5).map(([x, y, _]) => XY(x, y))[0],
+		sounds.filter(([x, y, t]) => (t === 4 || t === 5)).map(([x, y, _]) => XY(x, y)));
 	wind(audioState)
 	lake(audioState)
 	playOrgan(audioState)

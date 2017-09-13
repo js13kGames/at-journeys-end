@@ -41,20 +41,11 @@ class OrganPipeline {
 		this.filter.connect(this.gain);
 		this.filter.type = 'allpass';
 		this.filter.frequency.value = frequency;
-
-		this.oscillators = [];
-		for (let i = 0; i < voices; i++) {
-			this.oscillators[i] = context.createOscillator();
-			this.oscillators[i].frequency.value = 0;
-			this.oscillators[i].setPeriodicWave(organTable(context));
-			this.oscillators[i].connect(this.filter);
-		}
 	}
 
 	panner: PannerNode;
 	gain: GainNode;
 	filter: BiquadFilterNode;
-	oscillators: OscillatorNode[];
 }
 
 export interface AudioState {
@@ -207,8 +198,12 @@ type AudioSpec = [number, number, number, number];
 type NoteSpec = [string, number];
 
 function playOrganNote(audio: AudioState, spec: AudioSpec) {
+	console.log(spec);
 	let [frequency, voice, start, end] = spec;
-	let o = audio.organ.oscillators[voice];
+	let o = audio.context.createOscillator();
+	o.frequency.value = 0;
+	o.setPeriodicWave(organTable(audio.context));
+	o.connect(audio.organ.filter);
 
 	let absStart: number = audio.context.currentTime + start;
 	let absEnd: number = audio.context.currentTime + end;
@@ -216,7 +211,10 @@ function playOrganNote(audio: AudioState, spec: AudioSpec) {
 	audio.organ.gain.gain.setValueAtTime(0, absStart);
 	audio.organ.gain.gain.linearRampToValueAtTime(ORGAN_VOLUME, absStart + 0.01);
 	// TODO: WAT!?!?
-	audio.organ.gain.gain.linearRampToValueAtTime(0.001, absEnd + 1);
+	audio.organ.gain.gain.linearRampToValueAtTime(0.001, absEnd + 2);
+
+	o.start(absStart);
+	o.stop(absEnd);
 }
 
 function audioSpec(t: number, noteDuration: number, n: any, d: number): AudioSpec[] {
@@ -234,7 +232,6 @@ function playScore(audio: AudioState, score: NoteSpec[], bpm: number, bpb: numbe
 		t += (nv / d) * noteDuration;
 	});
 	spec.forEach(s => playOrganNote(audio, s));
-	audio.organ.oscillators.forEach(o => { o.start(t0); o.stop(t0 + t) });
 }
 
 export function playOrgan(audio: AudioState) {
@@ -246,4 +243,5 @@ export function playOrgan(audio: AudioState) {
 	['A#0,A#1,A#2', 1]];
 
 	playScore(audio, church, 120, 4, 4);
+	setTimeout(() => playOrgan(audio), 20000);
 }
