@@ -1,7 +1,7 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
 import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews, sounds } from './map'
 import { initIntro, updateIntro, initOutro, updateOutro, hideBoat, inBoatCubes, outBoatCubes } from './boat'
-import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';
+import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, wind } from './sound';
 import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Corpse, Road, Light, Player, Enemy, Spirit, createTiles, Tile } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
@@ -83,12 +83,9 @@ function main() {
 			//case 73: c.worldViewRadius++; break;	// I increase viewable area
 			//case 75: c.worldViewRadius--; break;	// K decrease viewable area
 			//case 81: toggleSound(audioState); break;	// T toggle sound
-			//case 79: playOrgan(audioState); break;		// O organ
 			//case 89: c.cameraXYZ.z++; break;		// Y camera up
 			//case 72: c.cameraXYZ.z--; break;		// H camera down
 			//case 70: c.health -= 1; break;
-			//case 70: flameOfUdun(audioState); break;    // F flame
-			//case 84: thunder(audioState); break;        // T thunder
 			//case 48: showGrid = false; break;			// 0
 			//case 49: showGrid = true; break;			// 1
 			//default: console.log(key)
