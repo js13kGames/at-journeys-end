@@ -10,6 +10,7 @@ const TIME_UNITS_PER_STEP = 30
 function main() {
 	const body = document.body.style
 	body.margin = "0"
+	body.backgroundColor = "#000"
 	body.overflow = "hidden"
 	body.cursor = "none"
 
@@ -19,8 +20,8 @@ function main() {
 	initMovement()
 
 	const cameraHeight = 25
-	//let respawnXYZ = XYZ(340, -385, cameraHeight)
-	let respawnXYZ = XYZ(400, -2, cameraHeight)
+	let respawnXYZ = XYZ(340, -385, cameraHeight)
+	//let respawnXYZ = XYZ(400, -2, cameraHeight)
 
 	const c: Config = {
 		lib: canvas.getContext('2d'),
@@ -344,7 +345,7 @@ function main() {
 			c.lib.fillStyle = "#888"
 			c.lib.font = "24px Arial"
 			c.lib.textAlign = "center"
-			c.lib.fillText("You open the corpse's mouth and retrieve two gold coins.", x, y)
+			c.lib.fillText("You open the corpse's mouth and retrieve two copper coins.", x, y)
 		}
 
 		// frame rate in upper left corner
