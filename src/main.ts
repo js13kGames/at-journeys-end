@@ -11,6 +11,7 @@ function main() {
 	const body = document.body.style
 	body.margin = "0"
 	body.overflow = "hidden"
+	body.cursor = "none"
 
 	const canvas = <HTMLCanvasElement>document.createElement("canvas")
 	document.body.appendChild(canvas)
@@ -29,7 +30,7 @@ function main() {
 		//playerXY: XY(400, -1),
 		playerXY: copyXYZ(respawnXYZ),
 		playerAngle: -Math.PI/2,
-		fuel: 1,
+		fuel: 100,
 		lanternIntensity: 1,
 		cameraXYZ: copyXYZ(respawnXYZ),
 		cameraAngle: -Math.PI/2,
@@ -38,7 +39,8 @@ function main() {
 		frameMS: 0,
 		health: 3,
 		pain: 0,
-		safeTime: 0 // time after which player can be hurt again
+		safeTime: 0, // time after which player can be hurt again
+		spiritFound: false
 	}
 
 	// TODO: assign locations based on 'sounds' array from 'map' module
@@ -66,10 +68,9 @@ function main() {
 
 	let walkSpeed = 0
 	let turnSpeed = 0
-	//let showGrid = false
 	let inBoatHidden = false
 	let churchSwap = false
-	let spawnTimer = 0
+	let spawnTimer = c.now + 1000
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -293,8 +294,10 @@ function main() {
 			// respawn
 			c.playerXY = copyXYZ(respawnXYZ)
 			c.cameraXYZ = copyXYZ(respawnXYZ)
-			spirit.center.x = respawnXYZ.x
-			spirit.center.y = respawnXYZ.y
+			if (c.spiritFound) {
+				spirit.center.x = respawnXYZ.x
+				spirit.center.y = respawnXYZ.y
+			}
 			c.fuel = 100
 
 			// wait for overlay to fade, then reset health

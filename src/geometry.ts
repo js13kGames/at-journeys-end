@@ -50,6 +50,7 @@ export interface Config {
 	health: number
 	pain: number
 	safeTime: number // time after which player can be hurt again
+	spiritFound: boolean
 }
 
 export function XY(x: number, y: number) {

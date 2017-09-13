@@ -648,7 +648,10 @@ export function Spirit(xy: XYZ): NPC {
 		const d = XYDistance(XYMinusXY(c.playerXY, xy))
 
         // start following
-        if (!following && d < attachDistance) following = true
+        if (!following && d < attachDistance) {
+			following = true
+			c.spiritFound = true
+		}
 
         // decide when to move
         if (following && d > targetDistance) moveTowardsTarget = true
