@@ -32,7 +32,7 @@ function moveBoat(dx: number, dy: number, primitives: Primitive[]) {
 	})
 }
 
-let playIntro = false
+let playIntro = true
 let playOutro = true
 let elapsedSeconds = 0
 let boatX: number
