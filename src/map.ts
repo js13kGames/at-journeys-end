@@ -505,7 +505,7 @@ export const lights = [
 //pos y
 //sound type: 0-wind, 1-fuel ignition, 2-organ, 3-thunder, 4-stream, 5-lake
 export const sounds = [
-	[474, 390, 2],
+	[474, -390, 2],
 	[345, 54, 4],
 	[404, 71, 0],
 	[156, 465, 4],

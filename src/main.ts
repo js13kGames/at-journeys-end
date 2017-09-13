@@ -81,7 +81,7 @@ function main() {
 			case 68: turnSpeed = 0.032; break;			// D right
 			case 87: walkSpeed = 0.07; break;			// W up
 			case 83: walkSpeed = -0.05; break;			// S down
-			case 16: walkSpeed = 0.3; break;			// shift fast
+			//case 16: walkSpeed = 0.3; break;			// shift fast
 
 			//case 73: c.worldViewRadius++; break;	// I increase viewable area
 			//case 75: c.worldViewRadius--; break;	// K decrease viewable area
@@ -326,6 +326,8 @@ function main() {
 			c.playerXY.y -= 105
 			c.cameraXYZ.x += 90
 			c.cameraXYZ.y -= 105
+			spirit.center.x += 90
+			spirit.center.y -= 105
 			churchSwap = true
 			initOutro(c, outBoat)
 			showText = true
