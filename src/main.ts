@@ -20,8 +20,8 @@ function main() {
 
 	const cameraHeight = 25
 	//let respawnXYZ = XYZ(40, -300, cameraHeight)
-	//let respawnXYZ = XYZ(340, -490, cameraHeight)
-	let respawnXYZ = XYZ(400, -2, cameraHeight)
+	let respawnXYZ = XYZ(340, -490, cameraHeight)
+	//let respawnXYZ = XYZ(400, -2, cameraHeight)
 	//let respawnXYZ = XYZ(420, -390, cameraHeight)
 
 	const c: Config = {
