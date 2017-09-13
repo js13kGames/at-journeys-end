@@ -9,6 +9,7 @@ const THUNDER_FILTER_FREQ = 180;
 const LAKE_VOLUME = 0.3;
 const STEP_VOLUME = 0.2;
 const BUFFER_SIZE = 4096;
+const MAX_ORGAN_VOICES = 3;
 
 const openOrganR = new Float32Array([0, 1.0, 0.8, 0.6, 0.4, 0.2]);
 const openOrganI = new Float32Array(openOrganR.length);
@@ -31,13 +32,39 @@ class AudioPipeline {
 	processor: ScriptProcessorNode;
 }
 
+class OrganPipeline {
+	constructor(context: AudioContext, masterGain: GainNode, position: XY, voices: number, filterType: string, frequency: number) {
+		this.panner = context.createPanner();
+		this.panner.setPosition(position.x, position.y, 0);
+		this.panner.connect(masterGain);
+		this.gain = context.createGain();
+		this.gain.connect(this.panner);
+		this.filter = context.createBiquadFilter();
+		this.filter.connect(this.gain);
+		this.filter.type = 'allpass';
+		this.filter.frequency.value = frequency;
+
+		this.oscillators = [];
+		for (let i = 0; i < voices; i++) {
+			this.oscillators[i] = context.createOscillator();
+			this.oscillators[i].frequency.value = 0;
+			this.oscillators[i].setPeriodicWave(organTable(context));
+			this.oscillators[i].connect(this.filter);
+		}
+	}
+
+	panner: PannerNode;
+	gain: GainNode;
+	filter: BiquadFilterNode;
+	oscillators: OscillatorNode[];
+}
+
 export interface AudioState {
 	context: AudioContext;
 	totalGain: GainNode;
-	organWave: PeriodicWave;
 	listener: AudioListener;
-	organPanner: PannerNode;
 	lakePanners: PannerNode[];
+	organ: OrganPipeline;
 	step: AudioPipeline;
 	flame: AudioPipeline;
 	thunder: AudioPipeline;
@@ -61,13 +88,9 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 	let totalGain = context.createGain();
 	totalGain.gain.value = GAME_VOLUME;
 	totalGain.connect(context.destination);
-	let organWave = organTable(context);
 
 	let listener = context.listener;
 	listener.setPosition(playerPosition.x, playerPosition.y, 0);
-
-	let organPanner = context.createPanner();
-	organPanner.setPosition(organPosition.x, organPosition.y, 0);
 
 	let lakePanners = lakePositions.map(pos => {
 		let p = context.createPanner();
@@ -75,15 +98,16 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 		return p
 	});
 
-	// TODO: what is the correct frequency?
+	let organ = new OrganPipeline(context, totalGain, XY(3, 9), MAX_ORGAN_VOICES, 'bandpass', 500);
+
 	let step = new AudioPipeline(context, totalGain, 'bandpass', 666)
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
 	let thunder = new AudioPipeline(context, totalGain, 'lowpass', 180);
 	let wind = new AudioPipeline(context, totalGain, 'highpass', 4000);
 
 	return {
-		context, totalGain, organWave,
-		listener, organPanner, lakePanners,
+		context, totalGain, listener,
+		lakePanners, organ,
 		step, flame, thunder, wind
 	};
 }
@@ -187,32 +211,6 @@ export function lake(audio: AudioState) {
 	modulate();
 }
 
-function playOrganNote(audio: AudioState, spec: AudioSpec) {
-	let [frequency, start, end] = spec;
-
-	audio.organPanner.connect(audio.totalGain);
-	let gain = audio.context.createGain();
-	gain.connect(audio.organPanner);
-
-	let filter = audio.context.createBiquadFilter();
-	filter.connect(gain);
-	filter.frequency.value = 500;
-	filter.type = 'allpass';
-
-	let o = audio.context.createOscillator();
-	o.setPeriodicWave(audio.organWave);
-	o.frequency.value = frequency;
-	o.connect(filter);
-
-	let absStart: number = audio.context.currentTime + start;
-	let absEnd: number = audio.context.currentTime + end;
-	gain.gain.setValueAtTime(0, absStart)
-	gain.gain.linearRampToValueAtTime(ORGAN_VOLUME, absStart + 0.01);
-	gain.gain.linearRampToValueAtTime(0.001, absEnd + 0.25);
-	o.start(absStart);
-	o.stop(absEnd);
-}
-
 // TODO: Why?
 interface Map<T> {
 	[key: string]: T;
@@ -229,24 +227,38 @@ octaves.forEach(o => {
 	}
 });
 
-type AudioSpec = [number, number, number];
+type AudioSpec = [number, number, number, number];
 type NoteSpec = [string, number];
 
+function playOrganNote(audio: AudioState, spec: AudioSpec) {
+	let [frequency, voice, start, end] = spec;
+	let o = audio.organ.oscillators[voice];
+
+	let absStart: number = audio.context.currentTime + start;
+	let absEnd: number = audio.context.currentTime + end;
+	o.frequency.setValueAtTime(frequency, absStart);
+	audio.organ.gain.gain.setValueAtTime(0, absStart);
+	audio.organ.gain.gain.linearRampToValueAtTime(ORGAN_VOLUME, absStart + 0.01);
+	// TODO: WAT!?!?
+	audio.organ.gain.gain.linearRampToValueAtTime(0.001, absEnd + 1);
+}
+
 function audioSpec(t: number, noteDuration: number, n: any, d: number): AudioSpec[] {
-	return n.split(',').map((e: string) => [NOTE_FREQS[e], t, t + d * noteDuration]);
+	return n.split(',').map((e: string, i: number) => [NOTE_FREQS[e], i, t, t + d * noteDuration]);
 }
 
 function playScore(audio: AudioState, score: NoteSpec[], bpm: number, bpb: number, nv: number) {
 	let noteDuration = 60 / bpm;
-	let t = 0;
+	let t0 = audio.context.currentTime, t = 0;
 	let spec: AudioSpec[] = [];
-	score.forEach((v, i, a) => {
+	score.forEach(v => {
 		let [n, d] = v;
 		let s: AudioSpec[] = audioSpec(t, noteDuration, n, nv / d);
 		spec = spec.concat(s);
 		t += (nv / d) * noteDuration;
 	});
 	spec.forEach(s => playOrganNote(audio, s));
+	audio.organ.oscillators.forEach(o => { o.start(t0); o.stop(t0 + t) });
 }
 
 export function playOrgan(audio: AudioState) {
@@ -256,10 +268,6 @@ export function playOrgan(audio: AudioState) {
 	['C#1,C#2,C#3', 4], ['D#1,D#2,D#3', 4],
 	['C1,C2,C3', 4], ['C#1,C#2,C#3', 4],
 	['A#0,A#1,A#2', 1]];
-
-	// HACK: play church a few times
-	// TODO: repeat ad infinitum
-	church = church.concat(church, church, church, church);
 
 	playScore(audio, church, 120, 4, 4);
 }
