@@ -1,9 +1,11 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
-import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews } from './map'
+import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews, sounds } from './map'
 import { initIntro, updateIntro, initOutro, updateOutro, hideBoat, inBoatCubes, outBoatCubes } from './boat'
-import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
+import { initSound, toggleSound, moveListener, flameOfUdun, lake, playOrgan, stepSound, thunder, wind } from './sound';
 import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Corpse, Road, Light, Player, Enemy, Spirit, createTiles, Tile } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
+
+const TIME_UNITS_PER_STEP = 30
 
 function main() {
 	const body = document.body.style
@@ -13,9 +15,6 @@ function main() {
 
 	const canvas = <HTMLCanvasElement>document.createElement("canvas")
 	document.body.appendChild(canvas)
-
-	const audioState = initSound()
-	wind(audioState)
 
 	initMovement()
 
@@ -46,6 +45,14 @@ function main() {
 		pain: 0,
 		safeTime: 0 // time after which player can be hurt again
 	}
+
+	// TODO: assign locations based on 'sounds' array from 'map' module
+	const audioState = initSound(c.playerXY,
+		XY(32.75, -22.5),
+		sounds.filter(([x, y, t]) => t === 5).map(([x, y, _]) => XY(x, y)));
+	wind(audioState)
+	lake(audioState)
+	playOrgan(audioState)
 
 	function resize() {
 		const w = window.innerWidth
@@ -197,7 +204,7 @@ function main() {
 		...inBoat,
 		...outBoat,
 		...cans,
-		player, 
+		player,
 		...NPCs,
 		...tiles,
 		...oversize,
@@ -227,6 +234,12 @@ function main() {
 		lantern.center.x = c.playerXY.x
 		lantern.center.y = c.playerXY.y
 		lantern.setIntensity(c.lanternIntensity)
+
+		let playerDirection = RAToXYZ(RA(1, c.playerAngle))
+		moveListener(audioState, c.playerXY, playerDirection)
+		if (walkSpeed && Math.round(c.time * 10) % TIME_UNITS_PER_STEP === 0) {
+			stepSound(audioState)
+		}
 
 		// update camera
 		c.cameraXYZ.x += (c.playerXY.x - c.cameraXYZ.x) * 0.02
