@@ -2,7 +2,7 @@ import { XY } from './geometry';
 
 const GAME_VOLUME = 0.5;
 const ORGAN_VOLUME = 0.2;
-const WIND_VOLUME = 0.1;
+const WIND_VOLUME = 0.08;
 const FLAME_OF_UDUN_VOLUME = 0.6;
 const LAKE_VOLUME = 0.3;
 const STEP_VOLUME = 0.1;
@@ -14,13 +14,13 @@ const openOrganI = new Float32Array(openOrganR.length);
 let organTable = (context: AudioContext) => context.createPeriodicWave(openOrganR, openOrganI);
 
 class AudioPipeline {
-	constructor(context: AudioContext, masterGain: GainNode, filterType: string, frequency: number) {
+	constructor(context: AudioContext, masterGain: GainNode, filterType: BiquadFilterType, frequency: number) {
 		this.gain = context.createGain();
 		this.gain.connect(masterGain);
 		this.filter = context.createBiquadFilter();
 		this.filter.connect(this.gain);
-		this.filter.type = 'lowpass';
-		this.filter.frequency.value = 180;
+		this.filter.type = filterType;
+		this.filter.frequency.value = frequency;
 		this.processor = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
 		this.processor.connect(this.filter);
 	}
@@ -90,7 +90,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 
 	let step = new AudioPipeline(context, totalGain, 'bandpass', 666)
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
-	let wind = new AudioPipeline(context, totalGain, 'highpass', 4000);
+	let wind = new AudioPipeline(context, totalGain, 'highpass', 1500);
 
 	return {
 		context, totalGain, listener,
@@ -112,7 +112,7 @@ export function wind(audio: AudioState) {
 	let windModulation = new Float32Array(10);
 	function modulateWind() {
 		let last = windModulation[9];
-		windModulation = windModulation.map(_ => WIND_VOLUME * Math.random())
+		windModulation = windModulation.map(_ => Math.random() > 0.6 ? WIND_VOLUME : 0)
 		windModulation[0] = last || windModulation[0];
 		audio.wind.gain.gain.setValueCurveAtTime(windModulation, audio.context.currentTime, 30);
 		setTimeout(modulateWind, 31000);
@@ -150,7 +150,7 @@ export function lake(audio: AudioState) {
 
 		let filter = audio.context.createBiquadFilter();
 		filter.type = 'bandpass';
-		filter.frequency.value = 900;
+		filter.frequency.value = 400;
 		filter.connect(p);
 
 		let gain = audio.context.createGain();
@@ -169,7 +169,7 @@ export function lake(audio: AudioState) {
 			let dt = 0.2 + Math.random() * 0.2;
 			g.gain.linearRampToValueAtTime(LAKE_VOLUME, t);
 			while (dt < 9.5) {
-				g.gain.linearRampToValueAtTime(LAKE_VOLUME + (Math.random() * 0.1 - 0.05), t + dt);
+				g.gain.linearRampToValueAtTime(LAKE_VOLUME + (Math.random() * 0.2 - 0.1), t + dt);
 				dt += (0.2 + Math.random() * 0.2);
 			}
 		});
