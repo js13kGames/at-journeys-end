@@ -19,6 +19,7 @@ function main() {
 	initMovement()
 
 	const cameraHeight = 25
+	//let respawnXYZ = XYZ(340, -385, cameraHeight)
 	let respawnXYZ = XYZ(400, -2, cameraHeight)
 
 	const c: Config = {
@@ -71,6 +72,8 @@ function main() {
 	let inBoatHidden = false
 	let churchSwap = false
 	let spawnTimer = c.now + 1000
+	let showText = false
+	let textEndTimer = 0
 
 	function keyDown(key: Number) {
 		switch (key) {
@@ -318,13 +321,28 @@ function main() {
 		if (churchSwap && c.playerXY.x < 335) {
 			updateOutro(c, outBoat)
 		}
-		if (!churchSwap && c.playerXY.x > 370 && c.playerXY.y < -370) {
+		if (!churchSwap && c.playerXY.x > 374 && c.playerXY.y < -370) {
 			c.playerXY.x += 90
 			c.playerXY.y -= 105
 			c.cameraXYZ.x += 90
 			c.cameraXYZ.y -= 105
 			churchSwap = true
 			initOutro(c, outBoat)
+			showText = true
+			textEndTimer = c.now + 16000
+		}
+		if (c.playerXY.y < -450) c.fuel += 1/30
+
+		// show payment text
+		if (showText && c.now < textEndTimer) {
+			const x = c.canvasLW.l / 2 - 50
+			const y = c.canvasLW.w / 4
+
+			c.lib.globalCompositeOperation = "source-over"
+			c.lib.fillStyle = "#888"
+			c.lib.font = "24px Arial"
+			c.lib.textAlign = "center"
+			c.lib.fillText("You open the corpse's mouth and retrieve two gold coins.", x, y)
 		}
 
 		// frame rate in upper left corner
