@@ -51,7 +51,6 @@ export interface Config {
 	pain: number
 	safeTime: number // time after which player can be hurt again
 	spiritFound: boolean
-	tilesActive: number
 }
 
 export function XY(x: number, y: number) {

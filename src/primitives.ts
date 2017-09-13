@@ -51,23 +51,18 @@ export function Tile(xy: XYZ, size: number): Tile {
 	const minXY = XYZ(xy.x - s2 + .1, xy.y - s2 + .1)
 	const maxXY = XYZ(xy.x + s2 - .1, xy.y + s2 - .1)
 	const extension = 10
+	const tileContains = (wp: XY, _: number)=>
+		wp.x >= minXY.x-s2 && wp.x <= maxXY.x+s2 && wp.y >= minXY.y-s2 && wp.y <= maxXY.y+s2
 
 	return {
 		center: xy,
 		maxSize: size,
 		preventsTreeAt: (wp: XY, pad: number)=>parts.some(p=>p.preventsTreeAt(wp, pad)),
 		collidesWith: (wp: XY, pad: number, isPlayer: boolean, isEnemy: boolean, c: Config)=>
-			parts.some(p=>p.collidesWith(wp, pad, isPlayer, isEnemy, c)),
-		contains: (wp: XY, pad: number)=>{
-			return wp.x >= minXY.x-s2 && wp.x <= maxXY.x+s2 &&
-				wp.y >= minXY.y-s2 && wp.y <= maxXY.y+s2 &&
-				parts.some(p=>p.contains(wp, pad))
-		},
+			tileContains(wp, pad) && parts.some(p=>p.collidesWith(wp, pad, isPlayer, isEnemy, c)),
+		contains: (wp: XY, pad: number)=>tileContains(wp, pad) && parts.some(p=>p.contains(wp, pad)),
 		draw: (c: Config)=>{
-			if (XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r) {
-				c.tilesActive++
-				parts.forEach(p=>p.draw(c))
-			}
+			if (XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r) parts.forEach(p=>p.draw(c))
 		},
 		add: (p: Primitive, rejects: Primitive[])=>{
 			if (p.maxSize <= s2) parts.push(p)
@@ -484,7 +479,6 @@ export function Player(): Primitive {
 }
 
 export function Enemy(xy: XYZ): NPC {
-	console.log("Enemy spawned")
 	const body = Cylinder(xy, 0.7, 30, "#000")
 
 	let behavior: (c: Config, avoid: Primitive[])=>void

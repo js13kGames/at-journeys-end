@@ -40,12 +40,10 @@ function main() {
 		health: 3,
 		pain: 0,
 		safeTime: 0, // time after which player can be hurt again
-		spiritFound: false,
-		tilesActive: 0
+		spiritFound: false
 	}
 
 	// TODO: assign locations based on 'sounds' array from 'map' module
-	/*
 	let op = sounds.filter(a => a[2] == 2)[0];
 	const audioState = initSound(c.playerXY,
 		XY(op[0], op[1]),
@@ -53,7 +51,6 @@ function main() {
 	wind(audioState)
 	lake(audioState)
 	playOrgan(audioState)
-	*/
 
 	function resize() {
 		const w = window.innerWidth
@@ -143,7 +140,7 @@ function main() {
 	const roadPlanes = planes.filter(a=>a[5] == 5).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[2]*5, a[3]*5), a[4]))
 	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
 	const spirit = Spirit(XYZ(490, -208))
-	const NPCs = [spirit/*, ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))*/]
+	const NPCs = [spirit, ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))]
 	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
 	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6] ? a[6] : 0, true,
 		cubeColors[a[7] ? a[7]-1 : 0]))
@@ -240,13 +237,11 @@ function main() {
 			spawnTimer = c.now + 30000
 		}
 
-/*
 		let playerDirection = RAToXYZ(RA(1, c.playerAngle))
 		moveListener(audioState, c.playerXY, playerDirection)
 		if (walkSpeed && Math.round(c.time * 10) % TIME_UNITS_PER_STEP === 0) {
 			stepSound(audioState)
 		}
-*/
 
 		// update camera
 		c.cameraXYZ.x += (c.playerXY.x - c.cameraXYZ.x) * 0.02
@@ -262,7 +257,6 @@ function main() {
 
 		// draw primitives
 		c.lib.fillStyle = "black"
-		c.tilesActive = 0
 		primitives.forEach(p=>p.draw(c))
 
 		// check for refueling
@@ -270,7 +264,7 @@ function main() {
 			if (can.contains(c.playerXY, 0.5)) {
 				can.consume()
 				setTimeout(()=>c.fuel = Math.min(c.fuel + 50, 100), 400)
-				//flameOfUdun(audioState)
+				flameOfUdun(audioState)
 				respawnXYZ = copyXYZ(c.playerXY)
 				respawnXYZ.z = cameraHeight
 			}
@@ -308,7 +302,7 @@ function main() {
 
 			// wait for overlay to fade, then reset health
 			if (c.pain < -1) {
-				//flameOfUdun(audioState)
+				flameOfUdun(audioState)
 				c.pain = 1
 				c.health = 3
 			}
@@ -334,6 +328,7 @@ function main() {
 		}
 
 		// frame rate in upper left corner
+/*
 		const frameRate = Math.round(1000 / c.frameMS)
 		c.lib.globalCompositeOperation = "source-over"
 		c.lib.fillStyle = "yellow"
@@ -341,8 +336,8 @@ function main() {
 		c.lib.fillText("(" + Math.round(c.playerXY.x) + ", " +
 			Math.round(c.playerXY.y) + ") " + frameRate + " fps" +
 			", fuel: " + c.fuel.toFixed(2) + ", health: " + c.health +
-			", respawn: " + respawnXYZ.x + ", " + respawnXYZ.y +
-			", tiles: " + c.tilesActive, 5, 15)
+			", respawn: " + respawnXYZ.x + ", " + respawnXYZ.y, 5, 15)
+*/
 
 		window.requestAnimationFrame(draw)
 	}
