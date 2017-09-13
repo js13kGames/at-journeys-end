@@ -669,11 +669,7 @@ export function Spirit(xy: XYZ): NPC {
         const adjSpeed = speed / 50 + Math.max(Math.min(d - targetDistance, 15), 0) / 20;
 
         if (following && moveTowardsTarget) {
-            if (c.lanternIntensity <= 0.1) {
-				moveTowardsTarget = false
-				following = false
-				return
-			} else if (d < targetDistance) {
+			if (d < targetDistance) {
 				moveTowardsTarget = false
 			} else {
 				const dxy = RAToXYZ(RA(adjSpeed, Math.atan2(c.playerXY.y - xy.y, c.playerXY.x - xy.x)))

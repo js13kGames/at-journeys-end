@@ -23,7 +23,6 @@ function main() {
 	//let respawnXYZ = XYZ(340, -490, cameraHeight)
 	let respawnXYZ = XYZ(400, -2, cameraHeight)
 	//let respawnXYZ = XYZ(420, -390, cameraHeight)
-	let respawnAngle = -Math.PI/2
 
 	const c: Config = {
 		lib: canvas.getContext('2d'),
@@ -33,11 +32,11 @@ function main() {
 		time: 0,
 		//playerXY: XY(400, -1),
 		playerXY: copyXYZ(respawnXYZ),
-		playerAngle: respawnAngle,
+		playerAngle: -Math.PI/2,
 		fuel: 100,
 		lanternIntensity: 1,
 		cameraXYZ: copyXYZ(respawnXYZ),
-		cameraAngle: respawnAngle,
+		cameraAngle: -Math.PI/2,
 		transform: undefined,
 		now: new Date().getTime(),
 		frameMS: 0,
@@ -269,7 +268,6 @@ function main() {
 				flameOfUdun(audioState)
 				respawnXYZ = copyXYZ(c.playerXY)
 				respawnXYZ.z = cameraHeight
-				respawnAngle = c.playerAngle
 			}
 		})
 
@@ -296,7 +294,6 @@ function main() {
 
 			// respawn
 			c.playerXY = copyXYZ(respawnXYZ)
-			c.playerAngle = respawnAngle
 			c.cameraXYZ = copyXYZ(respawnXYZ)
 			spirit.center.x = respawnXYZ.x
 			spirit.center.y = respawnXYZ.y
@@ -320,6 +317,7 @@ function main() {
 		}
 
 		// frame rate in upper left corner
+/*
 		const frameRate = Math.round(1000 / c.frameMS)
 		c.lib.globalCompositeOperation = "source-over"
 		c.lib.fillStyle = "yellow"
@@ -328,6 +326,7 @@ function main() {
 			Math.round(c.playerXY.y) + ") " + frameRate + " fps" +
 			", fuel: " + c.fuel.toFixed(2) + ", health: " + c.health +
 			", respawn: " + respawnXYZ.x + ", " + respawnXYZ.y, 5, 15)
+*/
 
 		window.requestAnimationFrame(draw)
 	}
