@@ -1,8 +1,8 @@
 import { getTransform, distance, XYDistance, XYMinusXY, Config, XYZ, XY, LWH, LW, XYZPlusXYZ, RA, RAToXYZ, copyXYZ } from './geometry'
-import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies } from './map'
+import { cubes, planes, cylinders, noTreeZones, fuelCans, fences, lights, enemies, pews } from './map'
 import { initIntro, updateIntro, boatCubes } from './boat'
 import { initSound, toggleSound, flameOfUdun, playOrgan, thunder, wind } from './sound';
-import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Road, Light, Rain, Player, Enemy, Spirit, createTiles, Tile, drawRain } from './primitives'
+import { Primitive, Cube, Cylinder, Plane, FuelCan, RailFence, IronFence, TreeFence, Pew, Road, Light, Rain, Player, Enemy, Spirit, createTiles, Tile, drawRain } from './primitives'
 import { initMovement, moveWithDeflection } from './movement'
 
 function main() {
@@ -21,7 +21,8 @@ function main() {
 
 	const cameraHeight = 25
 	//let respawnXYZ = XYZ(40, -300, cameraHeight)
-	let respawnXYZ = XYZ(400, -10, cameraHeight)
+	//let respawnXYZ = XYZ(400, -2, cameraHeight)
+	let respawnXYZ = XYZ(420, -390, cameraHeight)
 	let respawnAngle = 1.5 * Math.PI
 
 	const c: Config = {
@@ -129,10 +130,12 @@ function main() {
 	const roadPlanes = planes.filter(a=>a[5] == 5).map(a=>Road(XYZ(a[0], -a[1], 0), LW(a[2]*5, a[3]*5), a[4]))
 	const cans = fuelCans.map(a=>FuelCan(XYZ(a[0], -a[1], 0), a[2]))
 	const spirit = Spirit(XYZ(90, -208))
-	const NPCs = [spirit, Enemy(XYZ(c.playerXY.x - 5, c.playerXY.y - 5)), ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))]
+	const NPCs = [spirit, ...enemies.map(a=>Enemy(XYZ(a[0], -a[1])))]
 	const basicCylinders = cylinders.map(a=>Cylinder(XYZ(a[0], -a[1], a[2]), a[3]/2, a[4], null))
 	const basicBlocks = cubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], true,
 		cubeColors[a[7]-1]))
+	const pewBlocks = pews.reduce((parts: Primitive[], a: number[])=>{
+		parts.push(...Pew(a)); return parts }, [] as Primitive[])
 	const fenceBlocks = fences.filter(a=>a[0] == 1 || a[0] == 3).reduce((parts: Primitive[], a: number[])=>{
 		parts.push(...(a[0] == 1 ? RailFence(a.slice(1)) : IronFence(a.slice(1)))); return parts }, [] as Primitive[])
 	const boatBlocks = boatCubes.map(a=>Cube(XYZ(a[0], -a[1], a[2]), LWH(a[3]/2, a[4]/2, a[5]), a[6], false,
@@ -147,8 +150,7 @@ function main() {
 		...NPCs,
 		...basicCylinders,
 		...basicBlocks,
-		...fenceBlocks,
-		...boatBlocks
+		...fenceBlocks
 	]
 	const treeFences = fences.filter(a=>a[0] == 2).reduce((trees: Primitive[], a: number[])=>{
 		trees.push(...TreeFence(a.slice(1), avoid))
@@ -171,6 +173,7 @@ function main() {
 	const tiles = createTiles([
 		...basicCylinders,
 		...basicBlocks,
+		...pewBlocks,
 		...fenceBlocks,
 		...treeFences,
 		...randomTrees
@@ -207,11 +210,6 @@ function main() {
 
 		// update player and lantern
 		c.playerAngle += turnSpeed
-/*
-		const pi2 = Math.PI * 2
-		if (c.playerAngle > pi2) c.playerAngle -= pi2
-		if (c.playerAngle < -pi2) c.playerAngle += pi2
-*/
 		c.playerXY = moveWithDeflection(c.playerXY, c.playerAngle, walkSpeed, 0.3, true, false, primitives, c)
 		c.fuel = Math.max(c.fuel - (c.frameMS / 1000) * .7, 0)
 		c.lanternIntensity = Math.max((Math.pow(c.fuel, 0.5) + Math.pow(c.fuel, 1/3)) * .07, 0.1)
@@ -223,12 +221,6 @@ function main() {
 		c.cameraXYZ.x += (c.playerXY.x - c.cameraXYZ.x) * 0.02
 		c.cameraXYZ.y += (c.playerXY.y - c.cameraXYZ.y) * 0.02
 		c.cameraAngle += (c.playerAngle - c.cameraAngle) * 0.02
-
-		/*
-		c.cameraXYZ.x = c.playerXY.x
-		c.cameraXYZ.y = c.playerXY.y
-		c.cameraAngle = c.playerAngle
-		*/
 
 		// clear the canvas
 		c.lib.fillStyle = "#000"
@@ -294,10 +286,11 @@ function main() {
 			}
 		}
 
-		updateIntro(c, boatBlocks)
+		//updateIntro(c, boatBlocks)
 
 		// frame rate in upper left corner
 		const frameRate = Math.round(1000 / c.frameMS)
+		c.lib.globalCompositeOperation = "source-over"
 		c.lib.fillStyle = "yellow"
 		c.lib.font = "12px Arial"
 		c.lib.fillText("(" + Math.round(c.playerXY.x) + ", " +

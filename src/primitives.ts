@@ -405,6 +405,13 @@ export function TreeFence(a: number[], avoid: Primitive[]): Primitive[] {
 	return trees
 }
 
+export function Pew(a: number[]): Primitive[] {
+	return [
+		Cube(XYZ(a[0]-.5, -a[1]), LWH(.25, 4.5, 2), 0),
+		Cube(XYZ(a[0], -a[1]), LWH(.75, 4.5, 1), 0),
+	]
+}
+
 const playerWPs = [
 	XY(-0.113, 0.106),
 	XY(-0.113, 0.106), XY(-0.097, 0.038), XY(0.002, 0.04),

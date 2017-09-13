@@ -23,6 +23,23 @@ export function initIntro(c: Config, boatPrimitives: Primitive[]) {
 
 export function updateIntro(c: Config, boatPrimitives: Primitive[]) {
 	if (playIntro) {
+		const l = 150
+		const w = 150
+		const x = c.canvasLW.l / 4 - l / 2
+		const y = c.canvasLW.w / 2 - w / 2
+
+		// draw the text
+		c.lib.globalCompositeOperation = "source-over"
+		c.lib.font = "18px Arial"
+		c.lib.textAlign = "left"
+		c.lib.fillStyle = "rgba(200,200,200," + (elapsedSeconds < 10 ? elapsedSeconds - 2 : 16 - elapsedSeconds) + ")"
+		c.lib.fillText("At journey's end,", x, y - 40)
+		c.lib.fillStyle = "rgba(200,200,200," + (elapsedSeconds < 10 ? elapsedSeconds - 4 : 16 - elapsedSeconds) + ")"
+		c.lib.fillText("A meager cost;", x, y)
+		c.lib.fillStyle = "rgba(200,200,200," + (elapsedSeconds < 10 ? elapsedSeconds - 6 : 16 - elapsedSeconds) + ")"
+		c.lib.fillText("A rite attend", x, y + 40)
+		c.lib.fillStyle = "rgba(200,200,200," + (elapsedSeconds < 10 ? elapsedSeconds - 8 : 16 - elapsedSeconds) + ")"
+		c.lib.fillText("To guide the lost.", x, y + 80)
 
 		// move the boat
 		elapsedSeconds += 1/60
