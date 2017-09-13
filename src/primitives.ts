@@ -10,7 +10,7 @@ export interface Primitive {
 	center: XYZ
 	maxSize: number
 	preventsTreeAt(wp: XY, pad: number): boolean
-	collidesWith(wp: XY, pad: number): boolean
+	collidesWith(wp: XY, pad: number, isPlayer: boolean, isEnemy: boolean, c: Config): boolean
 	contains(wp: XY, pad: number): boolean
 	draw(c: Config): void
 }
@@ -24,16 +24,16 @@ export interface FuelCan extends Primitive {
 	consume(): void
 }
 
-export interface Enemy extends Primitive {
+export interface NPC extends Primitive {
 	update(c: Config, avoid: Primitive[]): void
 }
 
 export interface Tile extends Primitive {
-	add(p: Primitive): void
+	add(p: Primitive, rejects: Primitive[]): void
 	outline(c: Config): void
 }
 
-export function createTiles(primitives: Primitive[]): Tile[] {
+export function createTiles(primitives: Primitive[], rejects: Primitive[]): Tile[] {
 	const size = 30 // width and height
 	const s2 = size / 2
 	const map: any = {}
@@ -43,13 +43,10 @@ export function createTiles(primitives: Primitive[]): Tile[] {
 		const name = tileCenter.x + "," + tileCenter.y
 		const tile = map[name] || Tile(tileCenter, size)
 		map[name] = tile
-		tile.add(p)
+		tile.add(p, rejects)
 	})
 
-	const tiles = Object.keys(map).map((k: any)=>map[k])
-
-	console.log(tiles.map(t=>t.center))
-	return tiles
+	return Object.keys(map).map((k: any)=>map[k])
 }
 
 export function Tile(xy: XYZ, size: number): Tile {
@@ -64,7 +61,8 @@ export function Tile(xy: XYZ, size: number): Tile {
 		center: xy,
 		maxSize: size,
 		preventsTreeAt: (wp: XY, pad: number)=>parts.some(p=>p.preventsTreeAt(wp, pad)),
-		collidesWith: (wp: XY, pad: number)=>parts.some(p=>p.collidesWith(wp, pad)),
+		collidesWith: (wp: XY, pad: number, isPlayer: boolean, isEnemy: boolean, c: Config)=>
+			parts.some(p=>p.collidesWith(wp, pad, isPlayer, isEnemy, c)),
 		contains: (wp: XY, pad: number)=>{
 			return wp.x >= minXY.x-s2 && wp.x <= maxXY.x+s2 &&
 				wp.y >= minXY.y-s2 && wp.y <= maxXY.y+s2 &&
@@ -73,9 +71,13 @@ export function Tile(xy: XYZ, size: number): Tile {
 		draw: (c: Config)=>{
 			if (XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r) parts.forEach(p=>p.draw(c))
 		},
-		add: (p: Primitive)=>{
-			if (p.maxSize > s2) console.log("Warning: part at " + xy.x + ", " + xy.y + " is larger than tile")
-			parts.push(p)
+		add: (p: Primitive, rejects: Primitive[])=>{
+			if (p.maxSize <= s2) parts.push(p)
+			else {
+				console.log("Note: part at " + p.center.x + ", " + p.center.y + " has size " + p.maxSize +
+					" which is too big for tiling")
+				rejects.push(p)
+			}
 		},
 		outline: (c: Config)=>{
 			const inRange = XYDistance(XYMinusXY(c.cameraXYZ, xy)) < c.worldViewRadius + r
@@ -93,10 +95,8 @@ export function Tile(xy: XYZ, size: number): Tile {
 	}
 }
 
-export function Cube(xyz: XYZ, lwh: LWH, a: number, collide=true, color?: string): Primitive {
+export function Cube(xyz: XYZ, lwh: LWH, a: number, collide=true, color?: string, op?: string): Primitive {
 	//lwh.h = 1
-	const bottomCorners = corners(xyz, lwh, a)
-	const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
 	const contains = (wp: XY, pad: number)=>rectangleContains(xyz, lwh, a, wp, pad)
 
 	return {
@@ -106,9 +106,12 @@ export function Cube(xyz: XYZ, lwh: LWH, a: number, collide=true, color?: string
 		collidesWith: (wp: XY, pad: number)=>collide && contains(wp, pad),
 		contains: contains,
 		draw: (c: Config)=>{
-			if (XYDistance(XYMinusXY(xyz, c.cameraXYZ)) > c.worldViewRadius) return
+			const r = Math.sqrt(lwh.l * lwh.l + lwh.w * lwh.w)
+			if (XYDistance(XYMinusXY(xyz, c.cameraXYZ)) - r > c.worldViewRadius) return
 
 			// only render the two sides adjacent to the nearest corner
+			const bottomCorners = corners(xyz, lwh, a)
+			const topCorners = bottomCorners.map(p=>XYZ(p.x, p.y, xyz.z + lwh.h))
 			const dists = bottomCorners.map(p=>XYDistance(XYMinusXY(c.cameraXYZ, p)))
 			const nearest = dists.indexOf(Math.min(...dists))
 
@@ -117,7 +120,7 @@ export function Cube(xyz: XYZ, lwh: LWH, a: number, collide=true, color?: string
 
 			// draw the four vertical sides
 			c.lib.fillStyle = color ? color : "black"
-			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
+			c.lib.globalCompositeOperation = op ? op : (color ? "overlay" : "source-over")
 			const sides = [(nearest + 3) % 4, nearest]
 			sides.forEach(i=>{
 				c.lib.beginPath()
@@ -131,21 +134,20 @@ export function Cube(xyz: XYZ, lwh: LWH, a: number, collide=true, color?: string
 			c.lib.beginPath()
 			moveTo(xys[4], c)
 			linesTo([xys[5], xys[6], xys[7], xys[4]], c)
-			c.lib.globalCompositeOperation = color ? "multiply" : "source-over"
+			c.lib.globalCompositeOperation = op ? op : (color ? "multiply" : "source-over")
 			c.lib.fill()
 		}
 	}
 }
 
-export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
-	//h = 1
-	const contains = (wp: XY, pad: number)=>{
-		const min = r + pad + 0.25
-		const rSquared = min * min
-		const dp = XYMinusXY(wp, xyz)
-		const dSquared = dp.x * dp.x + dp.y * dp.y
-		return dSquared < rSquared
-	}
+function circleContains(center: XYZ, r: number, wp: XY, pad: number): boolean {
+	const dp = XYMinusXY(wp, center)
+	const min = r + pad + 0.25
+	return (dp.x * dp.x + dp.y * dp.y) < min * min
+}
+
+export function Cylinder(xyz: XYZ, r: number, h: number, color?: string, op?: string): Primitive {
+	const contains = (wp: XY, pad: number)=>circleContains(xyz, r, wp, pad)
 
 	return {
 		center: xyz,
@@ -178,7 +180,7 @@ export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primit
 
 			// draw
 			c.lib.fillStyle = color ? color : "black"
-			c.lib.globalCompositeOperation = color ? "overlay" : "source-over"
+			c.lib.globalCompositeOperation = op ? op : (color ? "overlay" : "source-over")
 			c.lib.beginPath()
 			moveTo(bxys[0], c)
 			lineTo(txys[0], c)
@@ -219,6 +221,12 @@ export function Plane(xyz: XYZ, lw: LW, a: number, color: string, operation: str
 }
 
 export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
+
+	// swap l and w
+	if (lw.w > lw.l) {
+		lw = LW(lw.w, lw.l)
+		a += Math.PI / 2
+	}
 	const parts: Primitive[] = [Plane(XYZ(xyz.x, xyz.y, 0), lw, a, "#6d6d6d", "multiply", false, true)] // road
 	const lineLength = 1.0
 	const lineWidth = 0.15
@@ -244,12 +252,13 @@ export function Road(xyz: XYZ, lw: LW, a: number): Primitive {
 	}
 }
 
-export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
+export function Light(xyz: XYZ, wr: number, b: number, cr: number, color = [255, 255, 255], flicker=false): Light {
+	const rgba = "rgba(" + color[0] + "," + color[1] + "," + color[2] + ","
 	return {
 		center: xyz,
 		maxSize: wr,
 		preventsTreeAt: (wp: XY, pad: number)=>false,
-		collidesWith: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number, _: boolean, isEnemy: boolean)=>isEnemy && circleContains(xyz, cr, wp, pad),
 		contains: ()=>false,
 		draw: (c: Config)=>{
 			
@@ -272,7 +281,7 @@ export function Light(xyz: XYZ, wr: number, b: number, flicker=false): Light {
 				let x = lightScale * Math.pow(i / steps, 2) + 1
 				let alpha = intensity / (x * x)
 				if (alpha < 0.01) alpha = 0
-				g.addColorStop((x - 1) / lightScale, `rgba(255,255,255,${alpha})`)
+				g.addColorStop((x - 1) / lightScale, rgba + alpha + ")")
 			}
 			c.lib.fillStyle = g
 			c.lib.globalCompositeOperation = "source-over"
@@ -309,7 +318,7 @@ export function RailFence(a: number[]): Primitive[] {
 	const parts: Primitive[] = []
 	const post = (x1: number, y1: number, a: number)=>parts.push(Cube(XYZ(x1, y1, 0), LWH(.2, .2, 1.2), a, false))
 
-	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]-1), XY(a[i+2], -a[i + 3]-1))
+	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]), XY(a[i+2], -a[i + 3]))
 
 	function segment(p1: XY, p2: XY) {
 		const ra = XYsToRA(p1, p2)
@@ -332,10 +341,6 @@ export function RailFence(a: number[]): Primitive[] {
 }
 
 export function IronFence(a: number[]): Primitive[] {
-	// post: 2x2x2, 1.6x1.6x8, 2x2x1 at 8
-	// v-bars: .2x.2x9
-	// h-bars: at 2, at 7
-	// spacing: 1
 	const parts: Primitive[] = []
 	const post = (xy: XY, a: number)=>parts.push(...[
 		Cube(XYZ(xy.x, xy.y), LWH(1, 1, 2), a),
@@ -346,7 +351,7 @@ export function IronFence(a: number[]): Primitive[] {
 	const hBar = (p1: XY, p2: XY, h: number, ra: RA)=>
 		parts.push(Cube(XYZ((p1.x+p2.x)/2, (p1.y+p2.y)/2, h), LWH(ra.r/2, .1, .1), ra.a))
 
-	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]-1), XY(a[i+2], -a[i + 3]-1))
+	for (let i = 0; i < a.length - 2; i += 2) segment(XY(a[i], -a[i+1]), XY(a[i+2], -a[i + 3]))
 
 	function segment(p1: XY, p2: XY) {
 		const ra = XYsToRA(p1, p2)
@@ -382,20 +387,51 @@ export function TreeFence(a: number[], avoid: Primitive[]): Primitive[] {
 			const angle = Math.atan2(p2.y-p.y, p2.x-p.x)
 			const r = Math.min(randomR(), d/2)
 			const gap = maxGap - Math.random() * maxGap
-			const ra = RA(r1 + gap + r, angle + Math.random() * 1.4-.7)
+			const ra = RA(r1 + gap + r, angle + Math.random() * 1.6-.8)
 			p = XYPlusXY(p, RAToXYZ(ra))
-			r1 = r
-			trees.push(Cylinder(XYZ(p.x, p.y, 0), r, randomH()))
+			const xyz3 = XYZ(p.x, p.y, 0)
+			if (!avoid.some(p=>p.preventsTreeAt(xyz3, r))) trees.push(Cylinder(xyz3, r, randomH()))
 
 			// add a random tree at a right angle
 			const xy = XYPlusXY(p, RAToXYZ(RA(2 + Math.random() * 2, ra.a + Math.PI / 2 * (i % 2 ? 1 : -1))))
 			const xyz = XYZ(xy.x, xy.y, 0)
-			const r3 = randomR()-.1
-			if (!avoid.some(p=>p.preventsTreeAt(xyz, r3))) trees.push(Cylinder(xyz, r3, randomH()))
+			const r4 = randomR()-.1
+			if (!avoid.some(p=>p.preventsTreeAt(xyz, 43))) trees.push(Cylinder(xyz, 43, randomH()))
+
+			r1 = r
 		}
 	}
 
 	return trees
+}
+
+export function Pew(a: number[]): Primitive[] {
+	return [
+		Cube(XYZ(a[0]-.5, -a[1]), LWH(.25, 4.5, 2), 0),
+		Cube(XYZ(a[0], -a[1]), LWH(.75, 4.5, 1), 0),
+	]
+}
+
+export function Corpse(a: number[]): Primitive[] {
+	return [
+		Cube(XYZ(a[0], -a[1]+.4, .4), LWH(.35, 1, .1), 0, false, "#a3a3a3", "source-over"),
+		Cube(XYZ(a[0]-.2, -a[1], .4), LWH(.2, .5, .1), 6.1, false, "#a3a3a3", "source-over"),
+		Cube(XYZ(a[0]+.2, -a[1], .4), LWH(.2, .5, .1), 0.2, false, "#a3a3a3", "source-over"),
+
+/*
+export function Cylinder(xyz: XYZ, r: number, h: number, color?: string): Primitive {
+export const cylinders = [
+    [399.8, 0.5, 0.4, 0.5, 0.2, 4 ],
+    [400.2, 0.5, 0.4, 0.5, 0.2, 4 ],
+    [400, 0.5, 0.4, 0.7, 0.2, 4 ],
+    [400, 1.1, 0.4, 0.7, 0.2, 4 ],
+*/
+
+		Cylinder(XYZ(a[0]-.2, -a[1]-.5, .4), .25, .2, "#a3a3a3", "source-over"),
+		Cylinder(XYZ(a[0]+.2, -a[1]-.5, .4), .25, .2, "#a3a3a3", "source-over"),
+		Cylinder(XYZ(a[0], -a[1]-.5, .4), .35, .2, "#a3a3a3", "source-over"),
+		Cylinder(XYZ(a[0], -a[1]-1.1, .4), .35, .2, "#a3a3a3", "source-over")
+	]
 }
 
 const playerWPs = [
@@ -411,15 +447,35 @@ const playerWPs = [
 ]
 
 export function Player(): Primitive {
+	const center = XYZ(0, 0, 0)
+	const size = .1
+	const contains = (wp: XY, pad: number)=>circleContains(center, size, wp, pad)
+	const bitten = (c: Config)=>{
+		if (c.now > c.safeTime && c.health > 0) {
+			const biteCooldown = 1000
+			c.safeTime = c.now + biteCooldown
+			c.health--
+			c.pain = 1
+		}
+	}
+
 	return {
-		center: null,
-		maxSize: null,
+		center: center,
+		maxSize: size,
 		preventsTreeAt: (wp: XY, pad: number)=>false,
-		collidesWith: (wp: XY, pad: number)=>false,
-		contains: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number, isPlayer: boolean, isEnemy: boolean, c: Config)=>{
+			if (isPlayer) return false
+			if (contains(wp, pad)) {
+				bitten(c)
+				return true
+			}
+			return false
+		},
+		contains: contains,
 		draw: (c: Config)=>{
-			const playerXYZ = XYZ(c.playerXY.x, c.playerXY.y)
-			const wps = playerWPs.map(wp=>XYZPlusXYZ(playerXYZ,
+			center.x = c.playerXY.x
+			center.y = c.playerXY.y
+			const wps = playerWPs.map(wp=>XYZPlusXYZ(center,
 				RAToXYZ(RA(distance(wp.x, wp.y)*2, Math.atan2(wp.y, wp.x) + c.playerAngle - 1.5*Math.PI))))
 			const cps = c.transform.xyzs(wps)
 			c.lib.beginPath()
@@ -434,7 +490,7 @@ export function Player(): Primitive {
 	}
 }
 
-export function Enemy(xy: XYZ): Enemy {
+export function Enemy(xy: XYZ): NPC {
 	const body = Cylinder(xy, 0.7, 30, "#000")
 
 	let behavior: (c: Config, avoid: Primitive[])=>void
@@ -451,14 +507,18 @@ export function Enemy(xy: XYZ): Enemy {
 	function inPlayerFOV(c: Config): boolean {
 		const dxy = XYMinusXY(xy, c.playerXY)
 		const a = Math.atan2(dxy.y, dxy.x)
-		const da = Math.abs(Math.PI - Math.abs(Math.abs(c.playerAngle - a) - Math.PI))
+		const pi2 = Math.PI * 2
+		let pa = c.playerAngle
+		while (pa > pi2) pa -= pi2
+		while (pa < -pi2) pa += pi2
+		const da = Math.abs(Math.PI - Math.abs(Math.abs(pa - a) - Math.PI))
 		return da < 1.2
 	}
 
 	// support function
-	function move(dxy: XY, avoid: Primitive[]) {
+	function move(dxy: XY, avoid: Primitive[], c: Config) {
 		const ra = XYToRA(dxy)
-		const newXY = moveWithDeflection(xy, ra.a, ra.r, 0.7, avoid)
+		const newXY = moveWithDeflection(xy, ra.a, ra.r, 0.7, false, true, avoid, c)
 		xy.x = newXY.x
 		xy.y = newXY.y
 	}
@@ -475,7 +535,7 @@ export function Enemy(xy: XYZ): Enemy {
 		else behavior = idle
 
 		const ra = XYToRA(XYMinusXY(c.playerXY, xy))
-		move(RAToXYZ(RA(0.2, ra.a + Math.PI)), avoid)
+		move(RAToXYZ(RA(0.2, ra.a + Math.PI)), avoid, c)
 	}
 
 	// behavior
@@ -508,16 +568,16 @@ export function Enemy(xy: XYZ): Enemy {
 		if (d > 10 * c.lanternIntensity) moveToPlayer = true
 		if (d > 36) moveToPlayer = false
 		if (inStrikingRange) moveToPlayer = true
-		if (c.lanternIntensity < 0.2) moveToPlayer = true
+		if (c.lanternIntensity < .2) moveToPlayer = true
 
 		if (moveToPlayer) {
 			if (timer > nextMoveTime) {
 				moving = true
 				moveStartTime = timer
 				moveDur = Math.random() * 2.5 + .5
-				nextMoveTime = timer + moveDur + (c.lanternIntensity + .5) * (inPlayerFOV ?
+				nextMoveTime = timer + moveDur + (c.lanternIntensity + .5) * (inPlayerFOV(c) ?
 					Math.pow(Math.random() * 32, 0.5) : Math.pow(Math.random(), 2))
-				moveDir = (inPlayerFOV ? Math.random() * 4 - 2 : Math.random() * 2.8 - 1.4)
+				moveDir = (inPlayerFOV(c) ? Math.random() * 4 - 2 : Math.random() * 2.8 - 1.4)
 
 				if (d > 20 && d < 36) {
 					nextMoveTime = timer + moveDur
@@ -535,7 +595,7 @@ export function Enemy(xy: XYZ): Enemy {
 			}
 		}
 
-		move(dxy, avoid)
+		move(dxy, avoid, c)
 	}
 
 	behavior = idle
@@ -546,7 +606,8 @@ export function Enemy(xy: XYZ): Enemy {
 		center: xy,
 		maxSize: body.maxSize,
 		preventsTreeAt: (wp: XY, pad: number)=>contains(wp, pad),
-		collidesWith: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number, isPlayer: boolean, isEnemy: boolean, c: Config)=>
+			isEnemy ? false : body.collidesWith(wp, 0, isPlayer, isEnemy, c),
 		contains: contains,
 		draw: (c: Config)=>{
 			body.draw(c)
@@ -570,6 +631,106 @@ export function Enemy(xy: XYZ): Enemy {
 			c.lib.globalCompositeOperation = "source-over"
 			c.lib.fillStyle = "rgba(" + red + ",0,0,1)"
 			c.lib.fill()
+		},
+		update: (c: Config, avoid: Primitive[])=>behavior(c, avoid)
+	}
+}
+
+export function Spirit(xy: XYZ): NPC {
+	const light = Light(xy, 15, 1, 0, [122, 194, 255])
+	const attachDistance = 6
+    const speed = 1
+    const targetDistance = 4
+    const lightBaseIntensity = 1.6
+	const size = .3
+	const centers: XYZ[] = []
+	const lefts: XYZ[] = []
+	const rights: XYZ[] = []
+
+    let following = false
+    let moveTowardsTarget = false
+
+	function sine(t: number) {
+        return (.578 - (Math.sin(t) + Math.sin(2.2*t+5.52) + Math.sin(2.9*t+0.93) + Math.sin(4.6*t+8.94))) / 4
+    }
+
+	function behavior(c: Config, _: Primitive[]): void {
+		const d = XYDistance(XYMinusXY(c.playerXY, xy))
+
+        // start following
+        if (!following && d < attachDistance) following = true
+
+        // decide when to move
+        if (following && d > targetDistance) moveTowardsTarget = true
+
+        // float around a little
+        const t = c.now / 1000 * 0.8
+        if (following) {
+			xy.x += sine(t) / 20
+			xy.y += sine(t + 16) / 20
+		}
+
+        //move towards target
+        const adjSpeed = speed / 50 + Math.max(Math.min(d - targetDistance, 15), 0) / 20;
+
+        if (following && moveTowardsTarget) {
+            if (c.lanternIntensity <= 0.1) {
+				moveTowardsTarget = false
+				following = false
+				return
+			} else if (d < targetDistance) {
+				moveTowardsTarget = false
+			} else {
+				const dxy = RAToXYZ(RA(adjSpeed, Math.atan2(c.playerXY.y - xy.y, c.playerXY.x - xy.x)))
+				xy.x += dxy.x
+				xy.y += dxy.y
+			}
+        }
+	}
+
+	return {
+		center: xy,
+		maxSize: size,
+		preventsTreeAt: (wp: XY, pad: number)=>false,
+		collidesWith: (wp: XY, pad: number)=>false,
+		contains: (wp: XY, pad: number)=>false,
+		draw: (c: Config)=>{
+			light.draw(c)
+			centers.push(XYZ(xy.x, xy.y))
+			if (centers.length > 30) {
+				centers.splice(0, 1) // remove oldest
+
+				// determine left and right points of tangency
+				const oldest = centers[0]
+				const middle = centers[14]
+				const ra = XYsToRA(middle, xy)
+				const leftXY = XYZPlusXYZ(xy, RAToXYZ(RA(size, ra.a + Math.PI/2)))
+				const rightXY = XYZPlusXYZ(xy, RAToXYZ(RA(size, ra.a - Math.PI/2)))
+				lefts.push(leftXY)
+				rights.push(rightXY)
+				if (lefts.length > 30) {
+					lefts.splice(0, 1)
+					rights.splice(0, 1)
+
+					const middleLeft = lefts[14]
+					const middleRight = rights[14]
+
+					const cps = c.transform.xyzs([xy, middle, oldest, leftXY, rightXY, middleLeft, middleRight])
+
+					c.lib.beginPath()
+					c.lib.moveTo(cps[4].x, cps[4].y)
+					c.lib.bezierCurveTo(cps[6].x, cps[6].y, cps[2].x, cps[2].y, cps[2].x, cps[2].y)
+					c.lib.bezierCurveTo(cps[5].x, cps[5].y, cps[3].x, cps[3].y, cps[3].x, cps[3].y)
+
+					c.lib.globalCompositeOperation = "source-over"
+					c.lib.fillStyle = "#fff"
+					c.lib.fill()
+
+					c.lib.beginPath()
+					c.lib.arc(cps[0].x, cps[0].y, XYDistance(XYMinusXY(cps[0], cps[3])), 0, Math.PI * 2)
+					c.lib.fill()
+				}
+			}
 		},
 		update: (c: Config, avoid: Primitive[])=>behavior(c, avoid)
 	}

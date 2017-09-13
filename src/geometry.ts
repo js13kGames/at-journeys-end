@@ -38,7 +38,7 @@ export interface Config {
 	canvasCenter: XY
 	worldViewRadius: number
 	time: number
-	playerXY: XY
+	playerXY: XYZ
 	playerAngle: number
 	fuel: number
 	lanternIntensity: number
@@ -47,6 +47,9 @@ export interface Config {
 	transform: Transform
 	now: number
 	frameMS: number
+	health: number
+	pain: number
+	safeTime: number // time after which player can be hurt again
 }
 
 export function XY(x: number, y: number) {
@@ -55,6 +58,10 @@ export function XY(x: number, y: number) {
 
 export function RA(r: number, a: number) {
 	return { r: r, a: a }
+}
+
+export function copyXYZ(xyz: XYZ): XYZ {
+	return XYZ(xyz.x, xyz.y, xyz.z)
 }
 
 export function XYZ(x: number, y: number, z=0) {
