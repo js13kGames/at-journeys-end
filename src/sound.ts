@@ -9,7 +9,7 @@ const STEP_VOLUME = 0.1;
 const BUFFER_SIZE = 4096;
 const MAX_ORGAN_VOICES = 3;
 
-const openOrganR = new Float32Array([0, 1.0, 0.8, 0.6, 0.4, 0.2]);
+const openOrganR = new Float32Array([0, 1.0, 0.8, 0.6, 0.4]);
 const openOrganI = new Float32Array(openOrganR.length);
 let organTable = (context: AudioContext) => context.createPeriodicWave(openOrganR, openOrganI);
 
@@ -95,7 +95,7 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 		return p
 	});
 
-	let organ = new OrganPipeline(context, totalGain, XY(3, 9), MAX_ORGAN_VOICES, 'bandpass', 500);
+	let organ = new OrganPipeline(context, totalGain, organPosition, MAX_ORGAN_VOICES, 'bandpass', 500);
 
 	let step = new AudioPipeline(context, totalGain, 'bandpass', 666)
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
@@ -199,7 +199,7 @@ octaves.forEach(o => {
 	for (let n of NOTES) {
 		let od = o - 4;
 		let hs = od * 12 + (NOTES.indexOf(n) - NOTES.indexOf('A'));
-		NOTE_FREQS[n + o] = 440.0 * Math.pow(1.059463094359, hs);
+		NOTE_FREQS[n + o] = 440.0 * Math.pow(1.059, hs);
 	}
 });
 
