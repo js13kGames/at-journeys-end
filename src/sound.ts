@@ -4,8 +4,6 @@ const GAME_VOLUME = 0.5;
 const ORGAN_VOLUME = 0.2;
 const WIND_VOLUME = 0.1;
 const FLAME_OF_UDUN_VOLUME = 0.6;
-const THUNDER_VOLUME = 0.5;
-const THUNDER_FILTER_FREQ = 180;
 const LAKE_VOLUME = 0.3;
 const STEP_VOLUME = 0.1;
 const BUFFER_SIZE = 4096;
@@ -67,7 +65,6 @@ export interface AudioState {
 	organ: OrganPipeline;
 	step: AudioPipeline;
 	flame: AudioPipeline;
-	thunder: AudioPipeline;
 	wind: AudioPipeline;
 }
 
@@ -102,13 +99,12 @@ export function initSound(playerPosition: XY, organPosition: XY, lakePositions: 
 
 	let step = new AudioPipeline(context, totalGain, 'bandpass', 666)
 	let flame = new AudioPipeline(context, totalGain, 'lowpass', 180);
-	let thunder = new AudioPipeline(context, totalGain, 'lowpass', 180);
 	let wind = new AudioPipeline(context, totalGain, 'highpass', 4000);
 
 	return {
 		context, totalGain, listener,
 		lakePanners, organ,
-		step, flame, thunder, wind
+		step, flame, wind
 	};
 }
 
@@ -155,26 +151,6 @@ export function flameOfUdun(audio: AudioState) {
 	audio.flame.gain.gain.setValueAtTime(0, audio.context.currentTime + 0.6);
 
 	audio.flame.processor.onaudioprocess = whiteNoise;
-}
-
-export function thunder(audio: AudioState) {
-	function modulate() {
-		let t = audio.context.currentTime;
-		audio.thunder.gain.gain.setValueAtTime(0.7 + Math.random() * 0.2, t);
-		t += 0.2;
-		for (let i = 0; i < Math.random() * 6 + 2; i++) {
-			let a = Math.random();
-			audio.thunder.gain.gain.linearRampToValueAtTime(a * THUNDER_VOLUME, t);
-			audio.thunder.filter.frequency.value = THUNDER_FILTER_FREQ + (Math.random() * 100 - 50);
-			t += 0.2;
-		}
-		audio.thunder.gain.gain.linearRampToValueAtTime(0.8 * THUNDER_VOLUME, t);
-		audio.thunder.gain.gain.linearRampToValueAtTime(0.001, t + 5);
-		setTimeout(modulate, (Math.random() * 10 + 6) * 1000);
-	};
-	modulate();
-
-	audio.thunder.processor.onaudioprocess = whiteNoise;
 }
 
 export function lake(audio: AudioState) {
